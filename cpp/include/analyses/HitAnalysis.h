@@ -18,6 +18,8 @@
 #include <EVENT/LCEvent.h>
 #include <EVENT/LCCollection.h>
 #include <EVENT/SimTrackerHit.h>
+#include <EVENT/TrackerRawData.h>
+#include <UTIL/CellIDDecoder.h>
 
 class HitAnalysis : public LcioAbstractAnalysis { 
 
