@@ -1,3 +1,11 @@
+#
+# CMakeLists.txt
+# Omar Moreno <omoreno@slac.stanford.edu>
+# SLAC National Accelerator Facility
+# June 2016 
+#
+
+
 # Find the required ROOT libraries
 find_library(ROOT_CORE_LIB Core $ENV{ROOTSYS}/lib)
 find_library(ROOT_RIO_LIB RIO $ENV{ROOTSYS}/lib)
@@ -15,6 +23,11 @@ target_link_libraries(Plotter
     ${ROOT_RIO_LIB}
     ${ROOT_HIST_LIB}
     ${ROOT_GPAD_LIB}
+)
+
+add_library(TrackUtils TrackUtils.cxx)
+target_link_libraries(TrackUtils
+    ${LCIO_LIB}
 )
 
 add_executable(lcio_analyzer lcio_analyzer.cxx)
