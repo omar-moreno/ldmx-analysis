@@ -9,6 +9,7 @@ target_link_libraries(LcioAbstractAnalysis
 add_library(HitAnalysis HitAnalysis.cxx)
 target_link_libraries(HitAnalysis
     Plotter
+    TrackUtils
     LcioAbstractAnalysis
 )
 

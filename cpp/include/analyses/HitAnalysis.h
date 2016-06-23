@@ -11,6 +11,7 @@
 //   Utils   //
 //-----------//
 #include <Plotter.h>
+#include <TrackUtils.h>
 
 //----------//
 //   LCIO   //
@@ -20,6 +21,8 @@
 #include <EVENT/SimTrackerHit.h>
 #include <EVENT/TrackerRawData.h>
 #include <UTIL/CellIDDecoder.h>
+#include <EVENT/Track.h>
+#include <EVENT/MCParticle.h>
 
 class HitAnalysis : public LcioAbstractAnalysis { 
 

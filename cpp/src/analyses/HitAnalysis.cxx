@@ -24,6 +24,14 @@ void HitAnalysis::initialize() {
 
     plot = plotter->build2DHistogram("Tagger Shaper Amplitude", 6, 0, 6, 1000, 2000, 5000);
     //plot->GetXaxis()->SetTitle("x position (mm)");
+
+    plot = plotter->build1DHistogram("Total Tagger tracks", 5, 0, 5);
+    plot = plotter->build1DHistogram("Total track hits", 8, 0, 8);
+    plot = plotter->build1DHistogram("Tagger track momentum", 100, 3., 5.);
+    plot = plotter->build2DHistogram("Tagger track momentum vs chi2", 100, 0, 5., 50, 0, 50);
+    plot = plotter->build1DHistogram("Tagger track momentum - 6 hit", 100, 3., 5.);
+    plot = plotter->build1DHistogram("Tagger track momentum - 7 hit", 100, 3., 5.);
+    plot = plotter->build1DHistogram("Tagger track momentum - truth momentum", 100, -.5, .5); 
 }
 
 void HitAnalysis::processEvent(EVENT::LCEvent* event) { 
@@ -104,6 +112,46 @@ void HitAnalysis::processEvent(EVENT::LCEvent* event) {
             plotter->get2DHistogram("Tagger Shaper Amplitude")->Fill(sample_n, adc_values[sample_n]);
         } 
     }
+
+    // Get the collection of MC particles from the event. If no such collection
+    // exist, a DataNotAvailableException is thrown.
+    EVENT::LCCollection* mc_particles 
+       = (EVENT::LCCollection*) event->getCollection("MCParticle");
+    
+    EVENT::MCParticle* incident_e = nullptr;
+    // Loop over all of the MC particles 
+    for (int mc_particle_n = 0; mc_particle_n < mc_particles->getNumberOfElements(); ++mc_particle_n) {
+       
+        incident_e = (EVENT::MCParticle*) mc_particles->getElementAt(mc_particle_n);
+        if (incident_e->getParents().size() == 0) break; 
+    } 
+
+    // Get the collection of Tagger tracker tracks from the event.  If no such
+    // collection exist, a DataNotAvailableException is thrown.
+    EVENT::LCCollection* tagger_tracks 
+        = (EVENT::LCCollection*) event->getCollection("Tracks");
+
+    plotter->get1DHistogram("Total Tagger tracks")->Fill(tagger_tracks->getNumberOfElements());
+
+    // Loop over all of the Tagger tracks in the event
+    for (int tagger_track_n = 0; 
+            tagger_track_n < tagger_tracks->getNumberOfElements(); ++tagger_track_n) {
+        
+        EVENT::Track* tagger_track 
+            = (EVENT::Track*) tagger_tracks->getElementAt(tagger_track_n); 
+
+        std::vector<TrackerHit*> track_hits = tagger_track->getTrackerHits();
+        plotter->get1DHistogram("Total track hits")->Fill(track_hits.size());
+         
+        double p = TrackUtils::getMomentum(tagger_track, 1.5); 
+        plotter->get1DHistogram("Tagger track momentum")->Fill(p);
+        plotter->get2DHistogram("Tagger track momentum vs chi2")->Fill(p, tagger_track->getChi2());
+
+        const double* mc_p_vec = incident_e->getMomentum();
+        double mc_p = sqrt(mc_p_vec[0]*mc_p_vec[0] + mc_p_vec[1]*mc_p_vec[1] + mc_p_vec[2]*mc_p_vec[2]);
+        plotter->get1DHistogram("Tagger track momentum - truth momentum")->Fill(p - mc_p);
+    }
+
 }
 
 void HitAnalysis::finalize() { 
