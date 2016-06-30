@@ -22,8 +22,15 @@ void HitAnalysis::initialize() {
     plot->GetXaxis()->SetTitle("Layer number"); 
     plot->GetYaxis()->SetTitle("Total hits");
 
+    plot = plotter->build2DHistogram("Simulated Recoil Hit Time per Layer", 10, 1, 11, 50, 0, 50); 
+    plot->GetXaxis()->SetTitle("Layer number"); 
+    plot->GetYaxis()->SetTitle("Hit times");
+
     plot = plotter->build2DHistogram("Tagger Shaper Amplitude", 6, 0, 6, 1000, 2000, 5000);
-    //plot->GetXaxis()->SetTitle("x position (mm)");
+
+    plot = plotter->build2DHistogram("Raw Tagger Hits per Layer", 14, 1, 15, 10, 0, 10); 
+    plot->GetXaxis()->SetTitle("Layer number"); 
+    plot->GetYaxis()->SetTitle("Total hits");
 
     plot = plotter->build1DHistogram("Total Tagger tracks", 5, 0, 5);
     plot = plotter->build1DHistogram("Tagger - Hits per track", 8, 0, 8);
@@ -42,11 +49,13 @@ void HitAnalysis::initialize() {
     
     plot = plotter->build2DHistogram("Tagger track p vs chi2", 100, 0, 5., 50, 0, 50);
 
+    plot = plotter->build2DHistogram("Raw Recoil Hits per Layer", 10, 1, 11, 10, 0, 10); 
+    plot->GetXaxis()->SetTitle("Layer number"); 
+    plot->GetYaxis()->SetTitle("Total hits");
+
     plot = plotter->build1DHistogram("Total Recoil tracks", 5, 0, 5);
     plot = plotter->build1DHistogram("Recoil - Hits per track", 8, 0, 8);
-    plot = plotter->build1DHistogram("Recoil track p", 100, 3., 5.);
-    plot = plotter->build1DHistogram("Recoil track p - 6 hit", 100, 3., 5.);
-    plot = plotter->build1DHistogram("Recoil track p - 7 hit", 100, 3., 5.);
+    plot = plotter->build1DHistogram("Recoil track p", 100, 0, 5.);
     plot = plotter->build1DHistogram("Recoil track p - truth momentum", 100, -.5, .5); 
     plotter->build1DHistogram("Recoil track charge", 3, -1, 2)->GetXaxis()->SetTitle("Track charge");
     plotter->build1DHistogram("Recoil track chi2", 40, 0, 40)->GetXaxis()->SetTitle("Track #chi^{2}");
@@ -152,6 +161,9 @@ void HitAnalysis::processEvent(EVENT::LCEvent* event) {
         if (incident_e->getParents().size() == 0) break; 
     } 
 
+    //  Tagger Tracks  //
+    //-----------------//
+
     // Get the collection of Tagger tracker tracks from the event.  If no such
     // collection exist, a DataNotAvailableException is thrown.
     EVENT::LCCollection* tagger_tracks 
@@ -169,8 +181,19 @@ void HitAnalysis::processEvent(EVENT::LCEvent* event) {
         std::vector<TrackerHit*> track_hits = tagger_track->getTrackerHits();
         plotter->get1DHistogram("Tagger - Hits per track")->Fill(track_hits.size());
          
-        double p = TrackUtils::getMomentum(tagger_track, 1.5); 
+        double p = TrackUtils::getMomentum(tagger_track, -1.5); 
+        
         plotter->get1DHistogram("Tagger track p")->Fill(p);
+        if (track_hits.size() == 6) plotter->get1DHistogram("Tagger track p - 6 hit")->Fill(p);  
+        else if (track_hits.size() == 7) plotter->get1DHistogram("Tagger track p - 7 hit")->Fill(p);
+
+        plotter->get1DHistogram("Tagger curvature")->Fill(tagger_track->getOmega()); 
+        plotter->get1DHistogram("Tagger doca")->Fill(tagger_track->getD0());
+        plotter->get1DHistogram("Tagger z0")->Fill(tagger_track->getZ0());
+        plotter->get1DHistogram("Tagger sin(phi0)")->Fill(sin(tagger_track->getPhi()));
+        plotter->get1DHistogram("Tagger tan_lambda")->Fill(tagger_track->getTanLambda());
+        //plotter->get1DHistogram("Tagger cos(theta)")->Fill(TrackExtrapolator::getCosTheta(tagger_track));
+
         plotter->get2DHistogram("Tagger track p vs chi2")->Fill(p, tagger_track->getChi2());
 
         const double* mc_p_vec = incident_e->getMomentum();
@@ -195,9 +218,16 @@ void HitAnalysis::processEvent(EVENT::LCEvent* event) {
         std::vector<TrackerHit*> track_hits = recoil_track->getTrackerHits();
         plotter->get1DHistogram("Recoil - Hits per track")->Fill(track_hits.size());
          
-        double p = TrackUtils::getMomentum(recoil_track, 1.5); 
+        double p = TrackUtils::getMomentum(recoil_track, -1.5); 
         plotter->get1DHistogram("Recoil track p")->Fill(p);
         plotter->get2DHistogram("Recoil track p vs chi2")->Fill(p, recoil_track->getChi2());
+
+        plotter->get1DHistogram("Recoil curvature")->Fill(recoil_track->getOmega()); 
+        plotter->get1DHistogram("Recoil doca")->Fill(recoil_track->getD0());
+        plotter->get1DHistogram("Recoil z0")->Fill(recoil_track->getZ0());
+        plotter->get1DHistogram("Recoil sin(phi0)")->Fill(sin(recoil_track->getPhi()));
+        plotter->get1DHistogram("Recoil tan_lambda")->Fill(recoil_track->getTanLambda());
+        //plotter->get1DHistogram("Recoil cos(theta)")->Fill(TrackExtrapolator::getCosTheta(recoil_track));
 
         const double* mc_p_vec = incident_e->getMomentum();
         double mc_p = sqrt(mc_p_vec[0]*mc_p_vec[0] + mc_p_vec[1]*mc_p_vec[1] + mc_p_vec[2]*mc_p_vec[2]);
