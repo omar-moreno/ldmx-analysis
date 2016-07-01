@@ -66,7 +66,10 @@ class HitAnalysis : public LcioAbstractAnalysis {
         std::string class_name;
     
         /** Plotter used to make ROOT histograms */
-        Plotter* plotter;  
+        Plotter* plotter; 
+
+        double findable_tracks; 
+        double found_tracks;  
 };
 
 #endif
