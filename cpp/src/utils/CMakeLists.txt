@@ -35,5 +35,6 @@ target_link_libraries(lcio_analyzer
     ${LCIO_LIB}
     LcioAbstractAnalysis
     HitAnalysis
+    TrackAnalysis
 )
 

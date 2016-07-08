@@ -9,7 +9,12 @@ target_link_libraries(LcioAbstractAnalysis
 add_library(HitAnalysis HitAnalysis.cxx)
 target_link_libraries(HitAnalysis
     Plotter
-    TrackUtils
     LcioAbstractAnalysis
 )
 
+add_library(TrackAnalysis TrackAnalysis.cxx)
+target_link_libraries(TrackAnalysis
+    Plotter
+    TrackUtils
+    LcioAbstractAnalysis
+)

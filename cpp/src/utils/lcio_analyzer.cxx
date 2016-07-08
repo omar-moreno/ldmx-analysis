@@ -19,6 +19,7 @@
 #include <LcioAbstractAnalysis.h>
 
 #include <HitAnalysis.h>
+#include <TrackAnalysis.h>
 
 using namespace std;
 
@@ -70,6 +71,7 @@ int main(int argc, char** argv) {
 
 	// All all analyses that are to be run.
 	analyses.push_back(new HitAnalysis());
+	analyses.push_back(new TrackAnalysis());
 
 	// Initialize all analyses
 	for (list<LcioAbstractAnalysis*>::iterator analysis = analyses.begin(); 
