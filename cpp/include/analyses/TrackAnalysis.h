@@ -23,6 +23,7 @@
 #include <UTIL/CellIDDecoder.h>
 #include <EVENT/Track.h>
 #include <EVENT/MCParticle.h>
+#include <UTIL/LCRelationNavigator.h>
 
 class TrackAnalysis : public LcioAbstractAnalysis { 
 
