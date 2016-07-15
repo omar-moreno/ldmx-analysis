@@ -29,6 +29,9 @@ include_directories(${ROOT_INCLUDE_DIRS})
 # Include the LCIO headers
 include_directories("$ENV{LCIO}/include")
 
+# Include Geant4 headers
+include_directories("$ENV{G4_INCLUDE_PATH}")
+
 set(UTILS_HDR_DIR "${LDMX_ANALYSIS_SOURCE_DIR}/include/utils")
 include_directories("${UTILS_HDR_DIR}")
 
@@ -39,3 +42,6 @@ add_subdirectory("${LDMX_ANALYSIS_SOURCE_DIR}/src/utils")
 
 # Add the analysis subdirectory to the build
 add_subdirectory("${LDMX_ANALYSIS_SOURCE_DIR}/src/analyses")
+
+# Add Geant4 code subdirectory to the build
+add_subdirectory("${LDMX_ANALYSIS_SOURCE_DIR}/src/geant4")
