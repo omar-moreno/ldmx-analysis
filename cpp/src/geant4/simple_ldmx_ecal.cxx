@@ -19,6 +19,7 @@
 #include "G4UImanager.hh"
 
 #include <SimpleLdmxEcalDetectorConstruction.h>
+#include <SimpleLdmxEcalActionInitialization.h>
 
 using namespace std;
 
@@ -66,12 +67,17 @@ int main(int argc, char** argv) {
     physics_list->SetVerboseLevel(1);
     run_manager->SetUserInitialization(physics_list); 
 
+    run_manager->SetUserInitialization(new SimpleLdmxEcalActionInitialization());
+
     // Get the pointer to the User Interface manager
     G4UImanager* UImanager = G4UImanager::GetUIpointer();
 
     // Process the specified macro
     UImanager->ApplyCommand("/control/execute " + macro_name);
     
-
+    // Job termination
+    // Free the store: user actions, physics_list and detector_description are
+    // owned and deleted by the run manager, so they should not be deleted 
+    // in the main() program !
     delete run_manager;
 }
