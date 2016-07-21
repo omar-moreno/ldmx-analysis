@@ -16,5 +16,6 @@ void SimpleLdmxEcalActionInitialization::BuildForMaster() const {
 void SimpleLdmxEcalActionInitialization::Build() const {
 
     SetUserAction(new SimpleLdmxEcalPrimaryGeneratorAction());
+    SetUserAction(new SimpleLdmxEcalSteppingAction());
 }
 

@@ -3,6 +3,7 @@
 #define __SIMPLE_LDMX_ECAL_ACTION_INITIALIZATION_H__
 
 #include <SimpleLdmxEcalPrimaryGeneratorAction.h>
+#include <SimpleLdmxEcalSteppingAction.h>
 
 //------------//
 //   Geant4   //
