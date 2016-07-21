@@ -14,12 +14,17 @@ target_link_libraries(SimpleLdmxEcalPrimaryGeneratorAction
     ${Geant4_Libraries}
 )
 
+add_library(SimpleLdmxEcalSteppingAction SimpleLdmxEcalSteppingAction.cxx)
+target_link_libraries(SimpleLdmxEcalSteppingAction
+    ${Geant4_Libraries}
+)
+
 add_library(SimpleLdmxEcalActionInitialization SimpleLdmxEcalActionInitialization.cxx)
 target_link_libraries(SimpleLdmxEcalActionInitialization
     ${Geant4_Libraries}
     SimpleLdmxEcalPrimaryGeneratorAction
+    SimpleLdmxEcalSteppingAction
 )
-
 
 add_executable(simple_ldmx_ecal simple_ldmx_ecal.cxx)
 target_link_libraries(simple_ldmx_ecal
