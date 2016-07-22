@@ -8,7 +8,7 @@
 #include "G4Track.hh"
 #include "G4TrackVector.hh"
 #include "G4UserSteppingAction.hh"
-
+#include "G4VProcess.hh"
 
 class SimpleLdmxEcalSteppingAction : public G4UserSteppingAction { 
 
