@@ -48,10 +48,13 @@ void SimpleLdmxEcalDetectorConstruction::DefineMaterials() {
 }
 
 G4VPhysicalVolume* SimpleLdmxEcalDetectorConstruction::DefineVolumes() { 
-  
-    G4Material* defaultMaterial  = G4Material::GetMaterial("Galactic"); 
-    G4Material* absorberMaterial = G4Material::GetMaterial("G4_W");
-    G4Material* gapMaterial      = G4Material::GetMaterial("G4_Si");
+ 
+    //--------------------------// 
+    //   Material definitions   //
+    //--------------------------// 
+    G4Material* vacuum  = G4Material::GetMaterial("Galactic"); 
+    G4Material* absorber_material = G4Material::GetMaterial("G4_W");
+    G4Material* gap_material      = G4Material::GetMaterial("G4_Si");
 
     // World and detector dimensions
   
@@ -62,6 +65,7 @@ G4VPhysicalVolume* SimpleLdmxEcalDetectorConstruction::DefineVolumes() {
     G4double gapThickness    = 0.05*cm;
     G4double layerThickness  = absoThickness + gapThickness;
     G4double calorThickness  = nofLayers * layerThickness;
+    G4double targetThickness = 0.33*W_X0;
     
     G4double worldSizeXY     = 1.5 * calorSizeXY;
     G4double worldSizeZ      = 2.2 * calorThickness; 
@@ -76,7 +80,7 @@ G4VPhysicalVolume* SimpleLdmxEcalDetectorConstruction::DefineVolumes() {
                          
     G4LogicalVolume* worldLV = new G4LogicalVolume(
                  worldS,           // its solid
-                 defaultMaterial,  // its material
+                 vacuum,  // its material
                  "World");         // its name
                                    
     G4VPhysicalVolume* worldPV = new G4PVPlacement(
@@ -89,6 +93,28 @@ G4VPhysicalVolume* SimpleLdmxEcalDetectorConstruction::DefineVolumes() {
                  0,                // copy number
                  true);            // checking overlaps 
 
+    //   Target   //
+    //------------//
+    G4ThreeVector posTarget = G4ThreeVector(0, 0, 0);
+  
+    G4VSolid* targetLayer = new G4Box("Target", calorSizeXY/2, calorSizeXY/2, targetThickness/2); 
+                      
+    G4LogicalVolume* logicTarget =  new G4LogicalVolume(
+                targetLayer,         //its solid
+                absorber_material,    //its material
+                "Target");           //its name
+  
+    new G4PVPlacement(0,                     //no rotation
+                    posTarget,               //at position
+                    logicTarget,             //its logical volume
+                    "Target",                //its name
+                    worldLV,                 //its mother  volume
+                    false,                   //no boolean operation
+                    0,                       //copy number
+                    true);         //overlaps checking
+    
+
+
     //-----------------//
     //   Calorimeter   //
     //-----------------//
@@ -99,7 +125,7 @@ G4VPhysicalVolume* SimpleLdmxEcalDetectorConstruction::DefineVolumes() {
                          
     G4LogicalVolume* calorLV = new G4LogicalVolume(
                  calorimeterS,    // its solid
-                 defaultMaterial, // its material
+                 vacuum, // its material
                  "Calorimeter");  // its name
                                    
     new G4PVPlacement(0,                // no rotation
@@ -116,7 +142,7 @@ G4VPhysicalVolume* SimpleLdmxEcalDetectorConstruction::DefineVolumes() {
                          
     G4LogicalVolume* layerLV = new G4LogicalVolume(
                  layerS,           // its solid
-                 defaultMaterial,  // its material
+                 vacuum,  // its material
                  "Layer");         // its name
 
      new G4PVReplica(
@@ -132,7 +158,7 @@ G4VPhysicalVolume* SimpleLdmxEcalDetectorConstruction::DefineVolumes() {
                          
     G4LogicalVolume* absorberLV = new G4LogicalVolume(
                  absorberS,        // its solid
-                 absorberMaterial, // its material
+                 absorber_material, // its material
                  "AbsoLV");        // its name
                                    
     new G4PVPlacement(
@@ -150,7 +176,7 @@ G4VPhysicalVolume* SimpleLdmxEcalDetectorConstruction::DefineVolumes() {
                          
     G4LogicalVolume* gapLV = new G4LogicalVolume(
                  gapS,             // its solid
-                 gapMaterial,      // its material
+                 gap_material,      // its material
                  "GapLV");         // its name
                                    
     new G4PVPlacement(
