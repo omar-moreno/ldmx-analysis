@@ -32,7 +32,6 @@ void HydrogenEcalDetectorConstruction::DefineMaterials() {
 
     // Use the NIST Manager to define some basic materials
     G4NistManager* nist_mng = G4NistManager::Instance();
-    nist_mng->FindOrBuildMaterial("G4_W");  // Tungsten
     nist_mng->FindOrBuildMaterial("G4_lH2"); // Liquid hydrogen
     
     G4double a;  // Mass of a mole;
@@ -53,7 +52,6 @@ G4VPhysicalVolume* HydrogenEcalDetectorConstruction::DefineVolumes() {
     //   Material definitions   //
     //--------------------------// 
     G4Material* vacuum  = G4Material::GetMaterial("Galactic");
-    G4Material* target_material = G4Material::GetMaterial("G4_W");
     G4Material* absorber_material = G4Material::GetMaterial("G4_lH2");
     G4Material* gap_material = G4Material::GetMaterial("G4_lH2");
     
@@ -97,25 +95,6 @@ G4VPhysicalVolume* HydrogenEcalDetectorConstruction::DefineVolumes() {
     G4VPhysicalVolume* world_placement 
         = new G4PVPlacement(0, G4ThreeVector(), world_logical_volume, "World", 0, false, 0, true);
 
-    //------------//
-    //   Target   //
-    //------------//
-    
-    // Material definitions
-
-    G4double w_x0 = 0.3504*cm; 
-    G4double target_thickness = 0.33*w_x0;
-    
-    G4ThreeVector target_pos = G4ThreeVector(0, 0, 0);
-  
-    G4VSolid* target_solid 
-        = new G4Box("Target", ecal_size_xy/2, ecal_size_xy/2, target_thickness/2); 
-                      
-    G4LogicalVolume* taget_logical_volume 
-        =  new G4LogicalVolume(target_solid, target_material, "Target");
-  
-    new G4PVPlacement(0, target_pos, taget_logical_volume, "Target", world_logical_volume, false, 0, true);
-    
     //-----------------//
     //   Calorimeter   //
     //-----------------//
