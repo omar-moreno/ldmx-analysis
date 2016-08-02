@@ -18,9 +18,20 @@ HydrogenEcalRunAction::HydrogenEcalRunAction()
     // Set the output file name
     analysis_manager->SetFileName("hydrogen_ecal_test");
 
-    analysis_manager->CreateNtuple("hydrogen_ecal", "kinematics");
-    analysis_manager->CreateNtupleDColumn("Egamma");
-    analysis_manager->CreateNtupleDColumn("Egamma_pn");
+    analysis_manager->CreateNtuple("gamma_p_to_pi_p", "kinematics");
+    analysis_manager->CreateNtupleDColumn("e_gamma");
+    analysis_manager->CreateNtupleDColumn("gamma_p_dir_x");
+    analysis_manager->CreateNtupleDColumn("gamma_p_dir_y");
+    analysis_manager->CreateNtupleDColumn("gamma_p_dir_z");
+    analysis_manager->CreateNtupleIColumn("n_secondaries");
+    analysis_manager->CreateNtupleDColumn("pi0_ke");
+    analysis_manager->CreateNtupleDColumn("pi0_p_dir_x");
+    analysis_manager->CreateNtupleDColumn("pi0_p_dir_y");
+    analysis_manager->CreateNtupleDColumn("pi0_p_dir_z");
+    analysis_manager->CreateNtupleDColumn("p_ke");
+    analysis_manager->CreateNtupleDColumn("p_p_dir_x");
+    analysis_manager->CreateNtupleDColumn("p_p_dir_y");
+    analysis_manager->CreateNtupleDColumn("p_p_dir_z");
     analysis_manager->FinishNtuple(); 
 }
 
@@ -40,6 +51,13 @@ void HydrogenEcalRunAction::BeginOfRunAction(const G4Run* run) {
 
 void HydrogenEcalRunAction::EndOfRunAction(const G4Run* run) { 
 
+    std::cout << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl;
+    std::cout << "%   Total number of events processed: " 
+              << run->GetNumberOfEvent() << std::endl;
+    std::cout << "%   Total number of photonuclear events: " 
+              << photo_nuclear_count << std::endl;
+    std::cout << "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%" << std::endl;
+
     // Get the analysis manager
     G4AnalysisManager* analysis_manager = G4AnalysisManager::Instance();
 
@@ -47,3 +65,5 @@ void HydrogenEcalRunAction::EndOfRunAction(const G4Run* run) {
     analysis_manager->Write(); 
     analysis_manager->CloseFile(); 
 }
+
+int HydrogenEcalRunAction::photo_nuclear_count = 0;

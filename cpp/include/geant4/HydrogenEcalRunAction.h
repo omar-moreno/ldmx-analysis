@@ -25,6 +25,11 @@ class HydrogenEcalRunAction : public G4UserRunAction {
 
         void EndOfRunAction(const G4Run* run);
 
+        static void IncrementPhotoNuclearCount() { ++photo_nuclear_count; };
+
+    private: 
+
+        static int photo_nuclear_count; 
 }; // HydrogenEcalRunAction
 
 #endif // __HYDROGEN_ECAL_RUN_ACTION_H__
