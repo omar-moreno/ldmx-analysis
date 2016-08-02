@@ -3,6 +3,7 @@
 #define __HYDROGEN_ECAL_STEPPING_ACTION_H__
 
 #include <GeantAnalysis.h>
+#include <HydrogenEcalRunAction.h>
 
 //------------//
 //   Geant4   //
