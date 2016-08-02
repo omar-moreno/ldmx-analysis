@@ -19,6 +19,11 @@ target_link_libraries(SimpleLdmxEcalPrimaryGeneratorAction
     ${Geant4_Libraries}
 )
 
+add_library(HydrogenEcalRunAction HydrogenEcalRunAction.cxx)
+target_link_libraries(HydrogenEcalRunAction
+    ${Geant4_Libraries}
+)
+
 add_library(SimpleLdmxEcalSteppingAction SimpleLdmxEcalSteppingAction.cxx)
 target_link_libraries(SimpleLdmxEcalSteppingAction
     ${Geant4_Libraries}
@@ -27,13 +32,8 @@ target_link_libraries(SimpleLdmxEcalSteppingAction
 add_library(HydrogenEcalSteppingAction HydrogenEcalSteppingAction.cxx)
 target_link_libraries(HydrogenEcalSteppingAction
     ${Geant4_Libraries}
+    HydrogenEcalRunAction
 )
-
-add_library(HydrogenEcalRunAction HydrogenEcalRunAction.cxx)
-target_link_libraries(HydrogenEcalRunAction
-    ${Geant4_Libraries}
-)
-
 
 add_library(SimpleLdmxEcalActionInitialization SimpleLdmxEcalActionInitialization.cxx)
 target_link_libraries(SimpleLdmxEcalActionInitialization
