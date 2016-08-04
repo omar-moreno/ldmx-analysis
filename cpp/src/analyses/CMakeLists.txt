@@ -18,3 +18,10 @@ target_link_libraries(TrackAnalysis
     TrackUtils
     LcioAbstractAnalysis
 )
+
+add_library(TaggerTrackerAnalysis TaggerTrackerAnalysis.cxx)
+target_link_libraries(TaggerTrackerAnalysis
+    FlatTupleMaker    
+    LcioAbstractAnalysis
+    TrackUtils
+)
