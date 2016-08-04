@@ -15,15 +15,19 @@
 //------------//
 //--- ROOT ---//
 //------------//
-#include <TH1F.h>
-#include <TH2F.h>
-#include <TH1D.h>
-#include <TH2D.h>
+#include <TCanvas.h>
+#include <TColor.h>
+#include <TFile.h>
 #include <TGraph.h>
 #include <TGraphErrors.h>
 #include <TGraphAsymmErrors.h>
-#include <TFile.h>
-#include <TCanvas.h>
+#include <TH1D.h>
+#include <TH1F.h>
+#include <TH2D.h>
+#include <TH2F.h>
+#include <TROOT.h>
+#include <TRint.h>
+#include <TStyle.h>
 
 class Plotter { 
 
