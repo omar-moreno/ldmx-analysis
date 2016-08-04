@@ -25,6 +25,13 @@ target_link_libraries(Plotter
     ${ROOT_GPAD_LIB}
 )
 
+add_library(FlatTupleMaker FlatTupleMaker.cxx)
+target_link_libraries(FlatTupleMaker
+    ${ROOT_CORE_LIBRARY}
+    ${ROOT_RIO_LIB}
+    ${ROOT_TREE_LIB}
+)
+
 add_library(TrackUtils TrackUtils.cxx)
 target_link_libraries(TrackUtils
     ${LCIO_LIB}
@@ -36,5 +43,6 @@ target_link_libraries(lcio_analyzer
     LcioAbstractAnalysis
     HitAnalysis
     TrackAnalysis
+    TaggerTrackerAnalysis
 )
 

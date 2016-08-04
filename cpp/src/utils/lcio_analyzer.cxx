@@ -30,6 +30,7 @@
 #include <LcioAbstractAnalysis.h>
 #include <HitAnalysis.h>
 #include <TrackAnalysis.h>
+#include <TaggerTrackerAnalysis.h>
 
 using namespace std;
 
@@ -111,6 +112,7 @@ int main(int argc, char** argv) {
 	// All all analyses that are to be run.
 	analyses.push_back(new HitAnalysis());
 	analyses.push_back(new TrackAnalysis());
+    analyses.push_back(new TaggerTrackerAnalysis());
 
 	// Create the LCIO reader and open the file.  If the file can't be opened, 
 	// warn the user and exit the application.
