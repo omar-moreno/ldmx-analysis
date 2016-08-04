@@ -98,3 +98,44 @@ namespace TrackUtils {
 		return charge; 		
 	};
 }
+
+bool TrackUtils::isTrackFindable(int layers, EVENT::MCParticle* particle, EVENT::LCCollection* sim_hits) {
+    std::vector<EVENT::SimTrackerHit*> empty_vec; 
+    return TrackUtils::isTrackFindable(layers, particle, sim_hits, empty_vec); 
+}
+
+bool TrackUtils::isTrackFindable(int layers, EVENT::MCParticle* particle, EVENT::LCCollection* sim_hits, 
+       std::vector<EVENT::SimTrackerHit*> &findable_sim_hits) {
+
+    // Create a cell ID decoder used to get specific properties associated with
+    // SimTrackerHits i.e. layer.
+    UTIL::CellIDDecoder<EVENT::SimTrackerHit> sim_hit_decoder(sim_hits);
+
+    // Loop over all Tagger SimTrackerHits in the event.
+    std::vector<int> hits(layers, 0);
+    for (int sim_hit_n = 0; sim_hit_n < sim_hits->getNumberOfElements(); ++sim_hit_n) { 
+        
+        // Get a Tagger SimTrackerHit from the collection of hits.
+        EVENT::SimTrackerHit* sim_hit = (EVENT::SimTrackerHit*) sim_hits->getElementAt(sim_hit_n);
+
+        // Get the layer number associated with this hit.
+        int layer = sim_hit_decoder(sim_hit)["layer"];
+
+        if (particle == sim_hit->getMCParticle())  {
+            findable_sim_hits.push_back(sim_hit); 
+            hits[layer - 1]++;
+        } 
+    }
+
+    bool findable_track = true;
+    for (int layer_n = 0; layer_n < layers; ++layer_n) { 
+        if (hits[layer_n] == 0) {
+            findable_sim_hits.clear(); 
+            findable_track = false;
+        }
+    }
+    
+    return findable_track;
+
+}
+

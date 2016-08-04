@@ -19,8 +19,12 @@
 //----------//
 //   LCIO   //
 //----------//
+#include <UTIL/CellIDDecoder.h>
+#include <EVENT/LCCollection.h>
+#include <EVENT/MCParticle.h>
 #include <EVENT/Track.h>
 #include <EVENT/TrackerHit.h>
+#include <EVENT/SimTrackerHit.h>
 
 namespace TrackUtils { 
 
@@ -111,6 +115,14 @@ namespace TrackUtils {
 	 */
 	int getLayer(EVENT::TrackerHit*);
 
+
+    /**
+     *
+     */
+    bool isTrackFindable(int layers, EVENT::MCParticle* particle, EVENT::LCCollection* sim_hit);
+
+    bool isTrackFindable(int layers, EVENT::MCParticle* particle, EVENT::LCCollection* sim_hit,
+            std::vector<EVENT::SimTrackerHit*> &findable_sim_hits);
 }
 
 #endif // __TRACK_UTILS_H__
