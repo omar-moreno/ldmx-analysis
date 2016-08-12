@@ -18,12 +18,21 @@ TaggerTrackerAnalysis::~TaggerTrackerAnalysis() {
 }
 
 void TaggerTrackerAnalysis::initialize() {
-    
+   
+    tuple->addVariable("beam_e_p");  
+    tuple->addVariable("beam_e_px");  
+    tuple->addVariable("beam_e_py");  
+    tuple->addVariable("beam_e_pz");  
+    tuple->addVariable("beam_e_p_last");  
+    tuple->addVariable("beam_e_px_last");  
+    tuple->addVariable("beam_e_py_last");  
+    tuple->addVariable("beam_e_pz_last");  
     tuple->addVariable("chi2"); 
     tuple->addVariable("d0");
     tuple->addVariable("event");
     tuple->addVariable("n_tracks");
     tuple->addVariable("n_track_hits");
+    tuple->addVariable("n_mishits"); 
     tuple->addVariable("omega");
     tuple->addVariable("p");
     tuple->addVariable("phi0");
@@ -32,6 +41,8 @@ void TaggerTrackerAnalysis::initialize() {
     tuple->addVariable("pz");
     tuple->addVariable("is_findable");
     tuple->addVariable("tan_lambda");
+    tuple->addVariable("x_target");
+    tuple->addVariable("y_target");
     tuple->addVariable("z0");
 
     tuple->addVector("sim_hit_layer");
@@ -51,7 +62,7 @@ void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
        = (EVENT::LCCollection*) event->getCollection("MCParticle");
    
     // Create a pointer to the incident electron i.e. the beam electron. 
-    EVENT::MCParticle* incident_e = nullptr;
+    EVENT::MCParticle* beam_e = nullptr;
 
     // Loop over all of the MC particles and find the beam electron. For now, 
     // this is simply done by looking for an electron that has no parent. 
@@ -65,7 +76,7 @@ void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
         //if (particle->getPDG() == 11) n_electrons++; 
 
         if (particle->getParents().size() == 0) {
-           incident_e = particle; 
+           beam_e = particle; 
         }
 
        /*if (particle->getPDG() == 22 && particle->getVertex()[2] < -3) { 
@@ -78,6 +89,13 @@ void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
        }*/ 
     }
 
+    // Calculate the momentum of the incident electron
+    double* beam_e_pvec = (double*) beam_e->getMomentum();
+    double beam_e_p = sqrt(pow(beam_e_pvec[0], 2) + pow(beam_e_pvec[1], 2) + pow(beam_e_pvec[2], 2));
+    tuple->setVariableValue("beam_e_p", beam_e_p); 
+    tuple->setVariableValue("beam_e_px", beam_e_pvec[0]); 
+    tuple->setVariableValue("beam_e_py", beam_e_pvec[1]); 
+    tuple->setVariableValue("beam_e_pz", beam_e_pvec[2]); 
 
     // Get the collection of SimTrackerHits associated with the Tagger tracker
     // from the event.  If no such collection exist, a DataNotAvailableException
@@ -108,7 +126,7 @@ void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
     // Check if the track is findable
     tuple->setVariableValue("is_findable", 0);
     std::vector<EVENT::SimTrackerHit*> findable_sim_hits; 
-    if (TrackUtils::isTrackFindable(14, incident_e, sim_hits, findable_sim_hits)) {
+    if (TrackUtils::isTrackFindable(14, beam_e, sim_hits, findable_sim_hits)) {
         ++findable_track;
         tuple->setVariableValue("is_findable", 1);  
     }
@@ -123,7 +141,27 @@ void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
         tuple->addToVector("sim_hit_pos_y", sim_hit->getPosition()[1]); 
         tuple->addToVector("sim_hit_pos_z", sim_hit->getPosition()[2]); 
         tuple->addToVector("sim_hit_time", sim_hit->getTime());
+    
+        if ((beam_e == sim_hit->getMCParticle()) && (layer == 14)) { 
+    
+            // Calculate the momentum of the incident electron
+            float* sim_hit_pvec = (float*) sim_hit->getMomentum();
+            double sim_hit_p = sqrt(pow(sim_hit_pvec[0], 2) + pow(sim_hit_pvec[1], 2) + pow(sim_hit_pvec[2], 2));
+            tuple->setVariableValue("beam_e_p_last", sim_hit_p); 
+            tuple->setVariableValue("beam_e_px_last", sim_hit_pvec[0]); 
+            tuple->setVariableValue("beam_e_py_last", sim_hit_pvec[1]); 
+            tuple->setVariableValue("beam_e_pz_last", sim_hit_pvec[2]); 
+        }
     }
+
+    // Get the collection of LCRelations between a raw hit and a SimTrackerHit.
+    EVENT::LCCollection* true_hit_relations
+        = (EVENT::LCCollection*) event->getCollection("TaggerTrueHitRelations");
+
+    // Instantiate an LCRelation navigator which allows faster access to either
+    // the SimTrackerHit or raw hits.
+    UTIL::LCRelationNavigator* true_hit_relations_nav
+        = new UTIL::LCRelationNavigator(true_hit_relations);
 
     // Get the collection of Tagger tracker tracks from the event.  If no such
     // collection exist, a DataNotAvailableException is thrown.
@@ -137,6 +175,25 @@ void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
         EVENT::Track* track = (EVENT::Track*) tracks->getElementAt(track_n); 
     
         std::vector<TrackerHit*> track_hits = track->getTrackerHits();
+
+        double n_mishit = 0;  
+        for (TrackerHit* track_hit : track_hits) {
+            bool mishit_found = false;
+            for (int raw_hit_n = 0; raw_hit_n < track_hit->getRawHits().size(); ++raw_hit_n) { 
+                
+                EVENT::TrackerRawData* tagger_track_raw_hit 
+                    = (EVENT::TrackerRawData*) track_hit->getRawHits()[raw_hit_n];
+                
+                EVENT::LCObjectVec sim_hit_list 
+                    = true_hit_relations_nav->getRelatedToObjects(tagger_track_raw_hit);
+                
+                if (((EVENT::SimTrackerHit*) sim_hit_list[0])->getMCParticle() != beam_e) { 
+                    mishit_found = true;
+                }
+            }
+            if (mishit_found) n_mishit++; 
+        } 
+        tuple->setVariableValue("n_mishits", n_mishit); 
 
         double p = TrackUtils::getMomentum(track, -1.5);
         std::vector<double> p_vec = TrackUtils::getMomentumVector(track, -1.5);

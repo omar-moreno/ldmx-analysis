@@ -22,7 +22,10 @@
 #include <EVENT/LCEvent.h>
 #include <EVENT/LCCollection.h>
 #include <EVENT/SimTrackerHit.h>
+#include <EVENT/TrackerRawData.h>
 #include <EVENT/MCParticle.h>
+#include <UTIL/CellIDDecoder.h>
+#include <UTIL/LCRelationNavigator.h>
 
 class TaggerTrackerAnalysis : public LcioAbstractAnalysis { 
 
