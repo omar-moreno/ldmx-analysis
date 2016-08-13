@@ -58,7 +58,10 @@ void FlatTupleMaker::fill() {
     
     // Fill the event with the current variables.
     tree->Fill();
+}
 
+void FlatTupleMaker::clear() { 
+    
     // Reset the variables to their original values
     for (auto& element : variables) { 
         element.second = -9999; 

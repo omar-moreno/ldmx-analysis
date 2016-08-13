@@ -57,6 +57,11 @@ class FlatTupleMaker {
         /**
          *
          */
+        void clear(); 
+
+        /**
+         *
+         */
         void close(); 
 
         /**
