@@ -31,6 +31,8 @@
 #include <HitAnalysis.h>
 #include <TrackAnalysis.h>
 #include <TaggerTrackerAnalysis.h>
+#include <RecoilTrackerAnalysis.h>
+#include <SignalAnalysis.h>
 
 using namespace std;
 
@@ -110,9 +112,11 @@ int main(int argc, char** argv) {
 	list<LcioAbstractAnalysis*> analyses;
 
 	// All all analyses that are to be run.
-	analyses.push_back(new HitAnalysis());
-	analyses.push_back(new TrackAnalysis());
-    analyses.push_back(new TaggerTrackerAnalysis());
+	//analyses.push_back(new HitAnalysis());
+	//analyses.push_back(new TrackAnalysis());
+    //analyses.push_back(new TaggerTrackerAnalysis());
+    analyses.push_back(new RecoilTrackerAnalysis());
+    //analyses.push_back(new SignalAnalysis()); 
 
 	// Create the LCIO reader and open the file.  If the file can't be opened, 
 	// warn the user and exit the application.
@@ -134,7 +138,7 @@ int main(int argc, char** argv) {
 		    cout << "[ LCIO ANALYZER ]: File " << lcio_file_name << " cannot be opened!" << endl;
 	        cout << "[ LCIO ANALYZER ]: File will not be processed." << endl;
         } 
-        cout << "[ LCIO ANALYZER ]: Processing file: " << lcio_file_name << endl;
+        cout << "[ LCIO ANALYZER ]: Processing file: " << (*files_it) << endl;
 
 	    EVENT::LCEvent* event = NULL;
 	    int event_number = 0;

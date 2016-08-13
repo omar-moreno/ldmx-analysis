@@ -37,6 +37,12 @@ target_link_libraries(TrackUtils
     ${LCIO_LIB}
 )
 
+add_library(TrackExtrapolator TrackExtrapolator.cxx)
+target_link_libraries(TrackExtrapolator
+    ${LCIO_LIB}
+    TrackUtils
+)
+
 add_executable(lcio_analyzer lcio_analyzer.cxx)
 target_link_libraries(lcio_analyzer 
     ${LCIO_LIB}
@@ -44,5 +50,7 @@ target_link_libraries(lcio_analyzer
     HitAnalysis
     TrackAnalysis
     TaggerTrackerAnalysis
+    RecoilTrackerAnalysis
+    SignalAnalysis
 )
 
