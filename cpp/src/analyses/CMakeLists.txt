@@ -38,3 +38,9 @@ target_link_libraries(SignalAnalysis
     FlatTupleMaker    
     LcioAbstractAnalysis
 )
+
+add_library(PhotoNuclearAnalysis PhotoNuclearAnalysis.cxx)
+target_link_libraries(PhotoNuclearAnalysis
+    FlatTupleMaker    
+    LcioAbstractAnalysis
+)

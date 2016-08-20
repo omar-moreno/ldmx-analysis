@@ -19,16 +19,19 @@ PhotoNuclearAnalysis::~PhotoNuclearAnalysis() {
 
 void PhotoNuclearAnalysis::initialize() {
 
-    TH1* plot = nullptr; 
+    /*TH1* plot = nullptr; 
     plot = plotter->build2DHistogram("Simulated Recoil Hits per Layer", 10, 1, 11, 10, 0, 10); 
     plot->GetXaxis()->SetTitle("Layer number"); 
-    plot->GetYaxis()->SetTitle("Total hits");
+    plot->GetYaxis()->SetTitle("Total hits");*/
 
-    tuple->addVector("sim_hit_layer");
-    tuple->addVector("sim_hit_pos_x");
-    tuple->addVector("sim_hit_pos_y");
-    tuple->addVector("sim_hit_pos_z");
-    tuple->addVector("sim_hit_time");
+    tuple->addVariable("pn_gamma_energy");
+    tuple->addVariable("pn_particle_mult");
+
+    tuple->addVector("recoil_sim_hit_layer");
+    tuple->addVector("recoil_sim_hit_pos_x");
+    tuple->addVector("recoil_sim_hit_pos_y");
+    tuple->addVector("recoil_sim_hit_pos_z");
+    tuple->addVector("recoil_sim_hit_time");
 }
 
 void PhotoNuclearAnalysis::processEvent(EVENT::LCEvent* event) { 
@@ -40,36 +43,24 @@ void PhotoNuclearAnalysis::processEvent(EVENT::LCEvent* event) {
     EVENT::LCCollection* mc_particles 
         = (EVENT::LCCollection*) event->getCollection("MCParticle");
 
-    if (mc_particles->getNumberOfElements() == 1) return;
-
-    // Create a pointer to the incident electron i.e. the beam electron. 
-    EVENT::MCParticle* incident_e = nullptr;
-
     //std::cout << "Number of MC particles: " << mc_particles->getNumberOfElements() << std::endl;
 
     // Loop over all of the MC particles and find the beam electron. For now, 
     // this is simply done by looking for an electron that has no parent. 
-    bool is_photonuclear = false;
+    EVENT::MCParticle* pn_gamma = nullptr;
     for (int mc_particle_n = 0; mc_particle_n < mc_particles->getNumberOfElements(); ++mc_particle_n) {
 
-        EVENT::MCParticle* particle = (EVENT::MCParticle*) mc_particles->getElementAt(mc_particle_n);
-        //std::cout << "Particle PDG ID: " << particle->getPDG() << std::endl;
+        EVENT::MCParticle* mc_particle = (EVENT::MCParticle*) mc_particles->getElementAt(mc_particle_n);
+        if (mc_particle->getPDG() == 22 
+                && mc_particle->getParents().size() == 1
+                && mc_particle->getParents()[0]->getParents().size() == 0) { 
+            
+            tuple->setVariableValue("pn_gamma_energy", mc_particle->getEnergy());
+            tuple->setVariableValue("pn_particle_mult", mc_particle->getDaughters().size());
 
-        if (particle->getParents().size() == 0) {
-            //std::cout << "Incident particle: " << particle->getPDG() 
-            //          << " has " << particle->getDaughters().size() << " daughters." << std::endl;
-            //incident_e = particle;
-            for (auto daughter : particle->getDaughters()) { 
-                if (daughter->getPDG() > 100 && daughter->getPDG() < 3000) { 
-                    is_photonuclear = true;
-                    std::cout << "Daughter: " << daughter->getPDG() << std::endl;
-                }
-            }
+            pn_gamma = mc_particle;
         }
     }
-    
-    if (!is_photonuclear) return; 
-
 
     // Get the collection of SimTrackerHits associated with the Tagger tracker
     // from the event.  If no such collection exist, a DataNotAvailableException
@@ -91,68 +82,13 @@ void PhotoNuclearAnalysis::processEvent(EVENT::LCEvent* event) {
         int layer = sim_hit_decoder(sim_hit)["layer"];
         sim_hits_vec[layer - 1]++;
 
-        tuple->addToVector("sim_hit_layer", layer);
-        tuple->addToVector("sim_hit_pos_x", sim_hit->getPosition()[0]); 
-        tuple->addToVector("sim_hit_pos_y", sim_hit->getPosition()[1]); 
-        tuple->addToVector("sim_hit_pos_z", sim_hit->getPosition()[2]); 
-        tuple->addToVector("sim_hit_time", sim_hit->getTime());
+        tuple->addToVector("recoil_sim_hit_layer", layer);
+        tuple->addToVector("recoil_sim_hit_pos_x", sim_hit->getPosition()[0]); 
+        tuple->addToVector("recoil_sim_hit_pos_y", sim_hit->getPosition()[1]); 
+        tuple->addToVector("recoil_sim_hit_pos_z", sim_hit->getPosition()[2]); 
+        tuple->addToVector("recoil_sim_hit_time", sim_hit->getTime());
     }
-
-    for (int layer_n = 0; layer_n < 10; layer_n++) { 
-        plotter->get2DHistogram("Simulated Recoil Hits per Layer")->Fill(layer_n+1, sim_hits_vec[layer_n]);
-    }
-
-    // Check if the track is findable
-    /*tuple->setVariableValue("is_findable", 0);
-      std::vector<EVENT::SimTrackerHit*> findable_sim_hits; 
-      if (TrackUtils::isTrackFindable(14, incident_e, sim_hits, findable_sim_hits)) {
-      ++findable_track;
-      tuple->setVariableValue("is_findable", 1);  
-      }
-
-      for (EVENT::SimTrackerHit* sim_hit : findable_sim_hits) { 
-
-    // Get the layer number associated with this hit.
-    int layer = sim_hit_decoder(sim_hit)["layer"];
-
-    tuple->addToVector("sim_hit_layer", layer);
-    tuple->addToVector("sim_hit_pos_x", sim_hit->getPosition()[0]); 
-    tuple->addToVector("sim_hit_pos_y", sim_hit->getPosition()[1]); 
-    tuple->addToVector("sim_hit_pos_z", sim_hit->getPosition()[2]); 
-    tuple->addToVector("sim_hit_time", sim_hit->getTime());
-    }
-
-    // Get the collection of Tagger tracker tracks from the event.  If no such
-    // collection exist, a DataNotAvailableException is thrown.
-    EVENT::LCCollection* tracks 
-    = (EVENT::LCCollection*) event->getCollection("TaggerTracks");
-
-    tuple->setVariableValue("n_tracks", tracks->getNumberOfElements());
-
-    for (int track_n = 0; track_n < tracks->getNumberOfElements(); ++track_n) {
-
-    EVENT::Track* track = (EVENT::Track*) tracks->getElementAt(track_n); 
-
-    std::vector<TrackerHit*> track_hits = track->getTrackerHits();
-
-    double p = TrackUtils::getMomentum(track, -1.5);
-    std::vector<double> p_vec = TrackUtils::getMomentumVector(track, -1.5);
-    double pt = sqrt(p_vec[1]*p_vec[1] + p_vec[2]*p_vec[2]); 
-
-    tuple->setVariableValue("n_track_hits", track_hits.size());
-    tuple->setVariableValue("chi2", track->getChi2());
-    tuple->setVariableValue("p", p);
-    tuple->setVariableValue("px", p_vec[0]);
-    tuple->setVariableValue("py", p_vec[1]);
-    tuple->setVariableValue("pz", p_vec[2]);
-    tuple->setVariableValue("d0", track->getD0());
-    tuple->setVariableValue("z0", track->getZ0());
-    tuple->setVariableValue("omega", track->getOmega());
-    tuple->setVariableValue("phi0", track->getPhi());
-    tuple->setVariableValue("tan_lambda", track->getTanLambda());
-    }
-    */
-
+    
     tuple->fill();
 }
 

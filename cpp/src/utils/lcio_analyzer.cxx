@@ -33,6 +33,7 @@
 #include <TaggerTrackerAnalysis.h>
 #include <RecoilTrackerAnalysis.h>
 #include <SignalAnalysis.h>
+#include <PhotoNuclearAnalysis.h>
 
 using namespace std;
 
@@ -115,8 +116,9 @@ int main(int argc, char** argv) {
 	//analyses.push_back(new HitAnalysis());
 	//analyses.push_back(new TrackAnalysis());
     //analyses.push_back(new TaggerTrackerAnalysis());
-    analyses.push_back(new RecoilTrackerAnalysis());
+    //analyses.push_back(new RecoilTrackerAnalysis());
     //analyses.push_back(new SignalAnalysis()); 
+    analyses.push_back(new PhotoNuclearAnalysis());
 
 	// Create the LCIO reader and open the file.  If the file can't be opened, 
 	// warn the user and exit the application.
