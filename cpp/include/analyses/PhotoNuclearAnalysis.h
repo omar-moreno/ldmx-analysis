@@ -57,6 +57,8 @@ class PhotoNuclearAnalysis : public LcioAbstractAnalysis {
 
     private: 
 
+        bool createdWithinTarget(MCParticle* particle);
+
         /** Allows the creation of a ROOT ntuple */
         FlatTupleMaker* tuple;
 

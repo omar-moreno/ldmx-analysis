@@ -10,9 +10,9 @@
 
 PhotoNuclearAnalysis::PhotoNuclearAnalysis() 
     : tuple(new FlatTupleMaker("photonuclear_tuple.root", "results")), 
-      plotter(new Plotter()) {
-    LcioAbstractAnalysis::class_name = "PhotoNuclearAnalysis";
-}
+    plotter(new Plotter()) {
+        LcioAbstractAnalysis::class_name = "PhotoNuclearAnalysis";
+    }
 
 PhotoNuclearAnalysis::~PhotoNuclearAnalysis() { 
 }
@@ -20,12 +20,21 @@ PhotoNuclearAnalysis::~PhotoNuclearAnalysis() {
 void PhotoNuclearAnalysis::initialize() {
 
     /*TH1* plot = nullptr; 
-    plot = plotter->build2DHistogram("Simulated Recoil Hits per Layer", 10, 1, 11, 10, 0, 10); 
-    plot->GetXaxis()->SetTitle("Layer number"); 
-    plot->GetYaxis()->SetTitle("Total hits");*/
+      plot = plotter->build2DHistogram("Simulated Recoil Hits per Layer", 10, 1, 11, 10, 0, 10); 
+      plot->GetXaxis()->SetTitle("Layer number"); 
+      plot->GetYaxis()->SetTitle("Total hits");*/
 
     tuple->addVariable("pn_gamma_energy");
     tuple->addVariable("pn_particle_mult");
+    tuple->addVariable("n_recoil_hits");
+    tuple->addVariable("n_neutron");
+    tuple->addVariable("n_pi0");
+    tuple->addVariable("n_pip");
+    tuple->addVariable("n_pim");
+    tuple->addVariable("n_proton");
+    tuple->addVariable("n_ion");
+    tuple->addVariable("n_gamma");
+
 
     tuple->addVector("recoil_sim_hit_layer");
     tuple->addVector("recoil_sim_hit_pos_x");
@@ -37,6 +46,7 @@ void PhotoNuclearAnalysis::initialize() {
 void PhotoNuclearAnalysis::processEvent(EVENT::LCEvent* event) { 
 
     tuple->setVariableValue("event", event->getEventNumber());
+    //std::cout << "Event: " << event->getEventNumber() << std::endl;
 
     // Get the collection of MC particles from the event. If no such collection
     // exist, a DataNotAvailableException is thrown.
@@ -48,17 +58,68 @@ void PhotoNuclearAnalysis::processEvent(EVENT::LCEvent* event) {
     // Loop over all of the MC particles and find the beam electron. For now, 
     // this is simply done by looking for an electron that has no parent. 
     EVENT::MCParticle* pn_gamma = nullptr;
+    double n_neutron = 0;
+    double n_pi0 = 0; 
+    double n_pip = 0;
+    double n_pim = 0;
+    double n_proton = 0;
+    double n_ion = 0;
+    double n_gamma = 0;
+
     for (int mc_particle_n = 0; mc_particle_n < mc_particles->getNumberOfElements(); ++mc_particle_n) {
 
         EVENT::MCParticle* mc_particle = (EVENT::MCParticle*) mc_particles->getElementAt(mc_particle_n);
-        if (mc_particle->getPDG() == 22 
-                && mc_particle->getParents().size() == 1
-                && mc_particle->getParents()[0]->getParents().size() == 0) { 
-            
-            tuple->setVariableValue("pn_gamma_energy", mc_particle->getEnergy());
-            tuple->setVariableValue("pn_particle_mult", mc_particle->getDaughters().size());
+        //std::cout << "MC Particle PDG ID: " << mc_particle->getPDG() << " vertex_z : " << mc_particle->getVertex()[2] << std::endl;
+        if (mc_particle->getPDG() == 22 && createdWithinTarget(mc_particle)) {
+            if (mc_particle->getParents()[0]->getParents().size() == 0) { 
+    
+                //std::cout << "Photonuclear gamma found." << std::endl;
 
-            pn_gamma = mc_particle;
+                tuple->setVariableValue("pn_gamma_energy", mc_particle->getEnergy());
+                tuple->setVariableValue("pn_particle_mult", mc_particle->getDaughters().size());
+
+                pn_gamma = mc_particle;
+
+                for (auto daughter : mc_particle->getDaughters()) { 
+                    switch (daughter->getPDG()) { 
+                        case 2112 : 
+                            n_neutron++;
+                            break;
+                        case 2212 : 
+                            n_proton++;
+                            break;
+                        case 111: 
+                            n_pi0++;
+                            break;
+                        case 211: 
+                            n_pip++;
+                            break;
+                        case -211: 
+                            n_pim++;
+                            break;
+                        case 22: 
+                            n_gamma; 
+                            break;
+                        default : 
+                            n_ion++;
+                            break;
+                    }
+                }
+            }
+        }
+
+
+        tuple->setVariableValue("n_neutron", n_neutron);
+        tuple->setVariableValue("n_pi0", n_pi0);
+        tuple->setVariableValue("n_pip", n_pip);
+        tuple->setVariableValue("n_pim", n_pim);
+        tuple->setVariableValue("n_proton", n_proton);
+        tuple->setVariableValue("n_ion", n_ion);
+        tuple->setVariableValue("n_gamma", n_gamma);
+
+        if (mc_particle->getPDG() > 100 && !createdWithinTarget(mc_particle)) {
+            //std::cout << "Skipping event with photo-nuclear event downstream." << std::endl;
+            return;
         }
     }
 
@@ -71,6 +132,7 @@ void PhotoNuclearAnalysis::processEvent(EVENT::LCEvent* event) {
     // Create a cell ID decoder used to get specific properties associated with
     // Tagger SimTrackerHits i.e. layer.
     UTIL::CellIDDecoder<EVENT::SimTrackerHit> sim_hit_decoder(sim_hits);
+    tuple->setVariableValue("n_recoil_hits", sim_hits->getNumberOfElements());
 
     std::vector<int> sim_hits_vec(10, 0);
     for (int sim_hit_n = 0; sim_hit_n < sim_hits->getNumberOfElements(); ++sim_hit_n) { 
@@ -88,10 +150,21 @@ void PhotoNuclearAnalysis::processEvent(EVENT::LCEvent* event) {
         tuple->addToVector("recoil_sim_hit_pos_z", sim_hit->getPosition()[2]); 
         tuple->addToVector("recoil_sim_hit_time", sim_hit->getTime());
     }
-    
+
     tuple->fill();
+    tuple->clear();
 }
 
 void PhotoNuclearAnalysis::finalize() { 
     tuple->close();
+}
+
+bool PhotoNuclearAnalysis::createdWithinTarget(MCParticle* particle) {
+    //std::cout << "Checking if particle was created within the target." << std::endl;
+    if (particle->getVertex()[2] > -.1750 && particle->getVertex()[2] < .1750) {
+        //std::cout << "Particle created within the target." << std::endl;
+        return true;
+    }
+    //std::cout << "Particle created downstream of the target." << std::endl;
+    return false; 
 }
