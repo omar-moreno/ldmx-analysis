@@ -35,12 +35,13 @@ void PhotoNuclearAnalysis::initialize() {
     tuple->addVariable("n_ion");
     tuple->addVariable("n_gamma");
 
-
     tuple->addVector("recoil_sim_hit_layer");
+    tuple->addVector("recoil_sim_hit_dedx");
+    tuple->addVector("recoil_sim_hit_backscattered");
+    tuple->addVector("recoil_sim_hit_time");
     tuple->addVector("recoil_sim_hit_pos_x");
     tuple->addVector("recoil_sim_hit_pos_y");
     tuple->addVector("recoil_sim_hit_pos_z");
-    tuple->addVector("recoil_sim_hit_time");
 }
 
 void PhotoNuclearAnalysis::processEvent(EVENT::LCEvent* event) { 
@@ -144,11 +145,15 @@ void PhotoNuclearAnalysis::processEvent(EVENT::LCEvent* event) {
         int layer = sim_hit_decoder(sim_hit)["layer"];
         sim_hits_vec[layer - 1]++;
 
+        tuple->addToVector("recoil_sim_hit_backscattered", 0);
+        if (sim_hit->getMCParticle()->isBackscatter()) 
+            tuple->addToVector("recoil_sim_hit_backscattered", 1);
         tuple->addToVector("recoil_sim_hit_layer", layer);
+        tuple->addToVector("recoil_sim_hit_time",  sim_hit->getEDep());
+        tuple->addToVector("recoil_sim_hit_time",  sim_hit->getTime());
         tuple->addToVector("recoil_sim_hit_pos_x", sim_hit->getPosition()[0]); 
         tuple->addToVector("recoil_sim_hit_pos_y", sim_hit->getPosition()[1]); 
         tuple->addToVector("recoil_sim_hit_pos_z", sim_hit->getPosition()[2]); 
-        tuple->addToVector("recoil_sim_hit_time", sim_hit->getTime());
     }
 
     tuple->fill();

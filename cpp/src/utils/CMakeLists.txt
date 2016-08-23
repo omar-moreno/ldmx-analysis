@@ -52,5 +52,6 @@ target_link_libraries(lcio_analyzer
     TaggerTrackerAnalysis
     RecoilTrackerAnalysis
     SignalAnalysis
+    PhotoNuclearAnalysis
 )
 
