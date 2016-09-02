@@ -99,12 +99,12 @@ namespace TrackUtils {
 	};
 }
 
-bool TrackUtils::isTrackFindable(int layers, EVENT::MCParticle* particle, EVENT::LCCollection* sim_hits) {
+bool TrackUtils::isTrackFindable(int layers, int strategy[],  EVENT::MCParticle* particle, EVENT::LCCollection* sim_hits) {
     std::vector<EVENT::SimTrackerHit*> empty_vec; 
-    return TrackUtils::isTrackFindable(layers, particle, sim_hits, empty_vec); 
+    return TrackUtils::isTrackFindable(layers, strategy, particle, sim_hits, empty_vec); 
 }
 
-bool TrackUtils::isTrackFindable(int layers, EVENT::MCParticle* particle, EVENT::LCCollection* sim_hits, 
+bool TrackUtils::isTrackFindable(int layers, int strategy[], EVENT::MCParticle* particle, EVENT::LCCollection* sim_hits, 
        std::vector<EVENT::SimTrackerHit*> &findable_sim_hits) {
 
     // Create a cell ID decoder used to get specific properties associated with
@@ -129,7 +129,7 @@ bool TrackUtils::isTrackFindable(int layers, EVENT::MCParticle* particle, EVENT:
 
     bool findable_track = true;
     for (int layer_n = 0; layer_n < layers; ++layer_n) { 
-        if (hits[layer_n] == 0) {
+        if (hits[layer_n] == 0 && strategy[layer_n] == 1) {
             findable_sim_hits.clear(); 
             findable_track = false;
         }

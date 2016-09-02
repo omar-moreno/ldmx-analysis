@@ -119,9 +119,9 @@ namespace TrackUtils {
     /**
      *
      */
-    bool isTrackFindable(int layers, EVENT::MCParticle* particle, EVENT::LCCollection* sim_hit);
+    bool isTrackFindable(int layers, int strategy[], EVENT::MCParticle* particle, EVENT::LCCollection* sim_hit);
 
-    bool isTrackFindable(int layers, EVENT::MCParticle* particle, EVENT::LCCollection* sim_hit,
+    bool isTrackFindable(int layers, int strategy[], EVENT::MCParticle* particle, EVENT::LCCollection* sim_hit,
             std::vector<EVENT::SimTrackerHit*> &findable_sim_hits);
 }
 
