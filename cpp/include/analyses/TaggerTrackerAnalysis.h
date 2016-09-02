@@ -57,11 +57,23 @@ class TaggerTrackerAnalysis : public LcioAbstractAnalysis {
          */
         void finalize();
 
+        /**
+         * Enable/disable the filtering of photonuclear events
+         *
+         * @param filter_pn True to enable filtering, false otherwise
+         */
+        void filterPhotoNuclearEvents(bool filter_pn);
+
     private: 
+
+        bool createdWithinTarget(MCParticle* particle);
 
         /** Allows the creation of a ROOT ntuple */
         FlatTupleMaker* tuple;
 
+        /** */
+        bool filter_pn;
+        
         /** Findable track count */
         int findable_track;
 

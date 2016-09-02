@@ -10,6 +10,7 @@
 
 TaggerTrackerAnalysis::TaggerTrackerAnalysis() 
     : tuple(new FlatTupleMaker("tagger_tracker_tuple.root", "results")),
+      filter_pn(true), 
       findable_track(0) {
     LcioAbstractAnalysis::class_name = "TaggerTrackerAnalysis";
 }
@@ -45,11 +46,19 @@ void TaggerTrackerAnalysis::initialize() {
     tuple->addVariable("y_target");
     tuple->addVariable("z0");
 
-    tuple->addVector("sim_hit_layer");
-    tuple->addVector("sim_hit_pos_x");
-    tuple->addVector("sim_hit_pos_y");
-    tuple->addVector("sim_hit_pos_z");
-    tuple->addVector("sim_hit_time");
+    tuple->addVector("tagger_sim_hit_layer");
+    tuple->addVector("tagger_sim_hit_dedx");
+    tuple->addVector("tagger_sim_hit_backscattered");
+    tuple->addVector("tagger_sim_hit_time");
+    tuple->addVector("tagger_sim_hit_pos_x");
+    tuple->addVector("tagger_sim_hit_pos_y");
+    tuple->addVector("tagger_sim_hit_pos_z");
+
+    tuple->addVector("findable_sim_hit_layer");
+    tuple->addVector("findable_sim_hit_pos_x");
+    tuple->addVector("findable_sim_hit_pos_y");
+    tuple->addVector("findable_sim_hit_pos_z");
+    tuple->addVector("findable_sim_hit_time");
 }
 
 void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) { 
@@ -77,6 +86,11 @@ void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
 
         if (particle->getParents().size() == 0) {
            beam_e = particle; 
+        }
+
+        if (filter_pn && particle->getPDG() > 100 && createdWithinTarget(particle)) { 
+            std::cout << "Skipping event with photo-nuclear reaction in target" << std::endl;
+            return;
         }
 
        /*if (particle->getPDG() == 22 && particle->getVertex()[2] < -3) { 
@@ -107,50 +121,61 @@ void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
     // Tagger SimTrackerHits i.e. layer.
     UTIL::CellIDDecoder<EVENT::SimTrackerHit> sim_hit_decoder(sim_hits);
 
-    /*for (int sim_hit_n = 0; sim_hit_n < sim_hits->getNumberOfElements(); ++sim_hit_n) { 
+    std::vector<int> sim_hits_vec(14, 0);
+    for (int sim_hit_n = 0; sim_hit_n < sim_hits->getNumberOfElements(); ++sim_hit_n) { 
         
+
         // Get a Tagger SimTrackerHit from the collection of hits.
         EVENT::SimTrackerHit* sim_hit 
             = (EVENT::SimTrackerHit*) sim_hits->getElementAt(sim_hit_n); 
 
+        if (sim_hit->getMCParticle() == beam_e) continue;
+
         // Get the layer number associated with this hit.
         int layer = sim_hit_decoder(sim_hit)["layer"];
+        sim_hits_vec[layer - 1]++;
 
-        tuple->addToVector("sim_hit_layer", layer);
-        tuple->addToVector("sim_hit_pos_x", sim_hit->getPosition()[0]); 
-        tuple->addToVector("sim_hit_pos_y", sim_hit->getPosition()[1]); 
-        tuple->addToVector("sim_hit_pos_z", sim_hit->getPosition()[2]); 
-        tuple->addToVector("sim_hit_time", sim_hit->getTime());
-    }*/
+        tuple->addToVector("tagger_sim_hit_backscattered", 0);
+        if (sim_hit->getMCParticle()->isBackscatter()) 
+            tuple->addToVector("tagger_sim_hit_backscattered", 1);
+        tuple->addToVector("tagger_sim_hit_layer", layer);
+        tuple->addToVector("tagger_sim_hit_dedx",  sim_hit->getEDep());
+        tuple->addToVector("tagger_sim_hit_time",  sim_hit->getTime());
+        tuple->addToVector("tagger_sim_hit_pos_x", sim_hit->getPosition()[0]); 
+        tuple->addToVector("tagger_sim_hit_pos_y", sim_hit->getPosition()[1]); 
+        tuple->addToVector("tagger_sim_hit_pos_z", sim_hit->getPosition()[2]); 
+
+    }
 
     // Check if the track is findable
     tuple->setVariableValue("is_findable", 0);
-    std::vector<EVENT::SimTrackerHit*> findable_sim_hits; 
-    if (TrackUtils::isTrackFindable(14, beam_e, sim_hits, findable_sim_hits)) {
+    std::vector<EVENT::SimTrackerHit*> findable_sim_hits;
+    int strategy[14] = { 1,1,1,1,1,1,1,1,1,1,1,1,1,1 };
+    if (TrackUtils::isTrackFindable(14, strategy, beam_e, sim_hits, findable_sim_hits)) {
         ++findable_track;
         tuple->setVariableValue("is_findable", 1);  
     }
     
-    for (EVENT::SimTrackerHit* sim_hit : findable_sim_hits) { 
+    for (EVENT::SimTrackerHit* findable_sim_hit : findable_sim_hits) { 
         
         // Get the layer number associated with this hit.
-        int layer = sim_hit_decoder(sim_hit)["layer"];
+        int layer = sim_hit_decoder(findable_sim_hit)["layer"];
 
-        tuple->addToVector("sim_hit_layer", layer);
-        tuple->addToVector("sim_hit_pos_x", sim_hit->getPosition()[0]); 
-        tuple->addToVector("sim_hit_pos_y", sim_hit->getPosition()[1]); 
-        tuple->addToVector("sim_hit_pos_z", sim_hit->getPosition()[2]); 
-        tuple->addToVector("sim_hit_time", sim_hit->getTime());
+        tuple->addToVector("findable_sim_hit_layer", layer);
+        tuple->addToVector("findable_sim_hit_pos_x", findable_sim_hit->getPosition()[0]); 
+        tuple->addToVector("findable_sim_hit_pos_y", findable_sim_hit->getPosition()[1]); 
+        tuple->addToVector("findable_sim_hit_pos_z", findable_sim_hit->getPosition()[2]); 
+        tuple->addToVector("findable_sim_hit_time", findable_sim_hit->getTime());
     
-        if ((beam_e == sim_hit->getMCParticle()) && (layer == 14)) { 
+        if ((beam_e == findable_sim_hit->getMCParticle()) && (layer == 14)) { 
     
             // Calculate the momentum of the incident electron
-            float* sim_hit_pvec = (float*) sim_hit->getMomentum();
-            double sim_hit_p = sqrt(pow(sim_hit_pvec[0], 2) + pow(sim_hit_pvec[1], 2) + pow(sim_hit_pvec[2], 2));
-            tuple->setVariableValue("beam_e_p_last", sim_hit_p); 
-            tuple->setVariableValue("beam_e_px_last", sim_hit_pvec[0]); 
-            tuple->setVariableValue("beam_e_py_last", sim_hit_pvec[1]); 
-            tuple->setVariableValue("beam_e_pz_last", sim_hit_pvec[2]); 
+            float* findable_sim_hit_pvec = (float*) findable_sim_hit->getMomentum();
+            double findable_sim_hit_p = sqrt(pow(findable_sim_hit_pvec[0], 2) + pow(findable_sim_hit_pvec[1], 2) + pow(findable_sim_hit_pvec[2], 2));
+            tuple->setVariableValue("beam_e_p_last", findable_sim_hit_p); 
+            tuple->setVariableValue("beam_e_px_last", findable_sim_hit_pvec[0]); 
+            tuple->setVariableValue("beam_e_py_last", findable_sim_hit_pvec[1]); 
+            tuple->setVariableValue("beam_e_pz_last", findable_sim_hit_pvec[2]); 
         }
     }
 
@@ -213,8 +238,23 @@ void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
     }
 
     tuple->fill();
+    tuple->clear();
 }
 
 void TaggerTrackerAnalysis::finalize() { 
     tuple->close();
+}
+
+bool TaggerTrackerAnalysis::createdWithinTarget(MCParticle* particle) {
+    //std::cout << "Checking if particle was created within the target." << std::endl;
+    if (particle->getVertex()[2] > -.1750 && particle->getVertex()[2] < .1750) {
+        //std::cout << "Particle created within the target." << std::endl;
+        return true;
+    }
+    //std::cout << "Particle created downstream of the target." << std::endl;
+    return false; 
+}
+
+void TaggerTrackerAnalysis::filterPhotoNuclearEvents(bool filter_pn) { 
+    this->filter_pn = filter_pn;
 }
