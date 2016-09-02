@@ -9,7 +9,8 @@
 #include <RecoilTrackerAnalysis.h>
 
 RecoilTrackerAnalysis::RecoilTrackerAnalysis() 
-    : tuple(new FlatTupleMaker("recoil_tracker_tuple_test.root", "results")) { 
+    : tuple(new FlatTupleMaker("recoil_tracker_tuple.root", "results")),
+      filter_pn(false) { 
       //findable_track(0) {
     LcioAbstractAnalysis::class_name = "RecoilTrackerAnalysis";
 }
@@ -22,100 +23,142 @@ void RecoilTrackerAnalysis::initialize() {
     // Event information 
     tuple->addVariable("event");
     tuple->addVariable("n_tracks");
+    tuple->addVariable("n_raw_hits");
 
-    // Track parameters and kinematics
-    tuple->addVariable("n_track_hits");
+    // Recoil track parameters and kinematics
 
-    tuple->addVariable("chi2"); 
-    tuple->addVariable("d0");
-    tuple->addVariable("omega");
-    tuple->addVariable("phi0");
-    tuple->addVariable("tan_lambda");
-    tuple->addVariable("z0");
+    tuple->addVariable("n_recoil_mishits"); 
+    tuple->addVariable("n_recoil_hits");
+    tuple->addVariable("recoil_is_findable");
+    tuple->addVariable("recoil_is_found");
+    tuple->addVariable("recoil_chi2"); 
+    tuple->addVariable("recoil_d0");
+    tuple->addVariable("recoil_omega");
+    tuple->addVariable("recoil_phi0");
+    tuple->addVariable("recoil_tan_lambda");
+    tuple->addVariable("recoil_z0");
     
-    tuple->addVariable("p");
-    tuple->addVariable("pt");
-    tuple->addVariable("px");
-    tuple->addVariable("py");
-    tuple->addVariable("pz");
+    tuple->addVariable("recoil_p");
+    tuple->addVariable("recoil_pt");
+    tuple->addVariable("recoil_px");
+    tuple->addVariable("recoil_py");
+    tuple->addVariable("recoil_pz");
 
-    /*tuple->addVariable("beam_e_p");  
-    tuple->addVariable("beam_e_px");  
-    tuple->addVariable("beam_e_py");  
-    tuple->addVariable("beam_e_pz");  
-    tuple->addVariable("beam_e_p_last");  
-    tuple->addVariable("beam_e_px_last");  
-    tuple->addVariable("beam_e_py_last");  
-    tuple->addVariable("beam_e_pz_last");  
-    tuple->addVariable("n_mishits"); 
-    tuple->addVariable("is_findable");
-    tuple->addVariable("x_target");
-    tuple->addVariable("y_target");
+    tuple->addVariable("recoil_truth_p_first");
+    tuple->addVariable("recoil_truth_pt_first");
+    tuple->addVariable("recoil_truth_px_first");
+    tuple->addVariable("recoil_truth_py_first");
+    tuple->addVariable("recoil_truth_pz_first");
 
+    tuple->addVariable("recoil_truth_p_last");
+    tuple->addVariable("recoil_truth_pt_last");
+    tuple->addVariable("recoil_truth_px_last");
+    tuple->addVariable("recoil_truth_py_last");
+    tuple->addVariable("recoil_truth_pz_last");
+
+    tuple->addVariable("hardest_brem_energy");
+    tuple->addVariable("hardest_brem_pos_z");
+
+    tuple->addVariable("n_recoil_sim_hits");
+    tuple->addVector("recoil_sim_hit_layer");
+    tuple->addVector("recoil_sim_hit_dedx");
+    tuple->addVector("recoil_sim_hit_backscattered");
+    tuple->addVector("recoil_sim_hit_time");
+    tuple->addVector("recoil_sim_hit_pos_x");
+    tuple->addVector("recoil_sim_hit_pos_y");
+    tuple->addVector("recoil_sim_hit_pos_z");
+
+    tuple->addVariable("n_sim_hits");
     tuple->addVector("sim_hit_layer");
+    tuple->addVector("sim_hit_dedx");
+    tuple->addVector("sim_hit_backscattered");
+    tuple->addVector("sim_hit_time");
     tuple->addVector("sim_hit_pos_x");
     tuple->addVector("sim_hit_pos_y");
     tuple->addVector("sim_hit_pos_z");
-    tuple->addVector("sim_hit_time");*/
+
+
+    /*/reco
+    tuple->addVariable("x_target");
+    tuple->addVariable("y_target");
+
+    */
 }
 
 void RecoilTrackerAnalysis::processEvent(EVENT::LCEvent* event) { 
    
     tuple->setVariableValue("event", event->getEventNumber());
+    //std::cout << "Event: " << event->getEventNumber() << std::endl;
+    
+    /*if (filter_pn) {
+    
+        // Get the collection of MC particles from the event. If no such collection
+        // exist, a DataNotAvailableException is thrown.
+        EVENT::LCCollection* mc_particles 
+            = (EVENT::LCCollection*) event->getCollection("MCParticle");
+        for (int mc_particle_n = 0; mc_particle_n < mc_particles->getNumberOfElements(); ++mc_particle_n) {
+       
+            EVENT::MCParticle* mc_particle = (EVENT::MCParticle*) mc_particles->getElementAt(mc_particle_n);
+
+            if (mc_particle->getPDG() > 100 && createdWithinTarget(mc_particle)) {
+                std::cout << "Skipping event with photo-nuclear reaction in target" << std::endl;
+                return;
+            }
+        }
+    }*/
+
     // Get the collection of MC particles from the event. If no such collection
     // exist, a DataNotAvailableException is thrown.
-    //EVENT::LCCollection* mc_particles 
-    //   = (EVENT::LCCollection*) event->getCollection("MCParticle");
+    EVENT::LCCollection* mc_particles 
+       = (EVENT::LCCollection*) event->getCollection("MCParticle");
    
-    // Create a pointer to the incident electron i.e. the beam electron. 
-    //EVENT::MCParticle* beam_e = nullptr;
+    // Create a pointer that will be used to store the recoil electron. 
+    EVENT::MCParticle* recoil_e = nullptr;
 
-    // Loop over all of the MC particles and find the beam electron. For now, 
+    // Loop over all of the MC particles and find the recoil electron. For now, 
     // this is simply done by looking for an electron that has no parent. 
-    //int n_electrons = 0;
-    //double largest_brem_energy = 0; 
-    //double brem_position = -1; 
-    //for (int mc_particle_n = 0; mc_particle_n < mc_particles->getNumberOfElements(); ++mc_particle_n) {
+    double hardest_brem_energy = -10000; 
+    double hardest_brem_position = -10000; 
+    for (int particle_n = 0; particle_n < mc_particles->getNumberOfElements(); ++particle_n) {
 
-    //    EVENT::MCParticle* particle = (EVENT::MCParticle*) mc_particles->getElementAt(mc_particle_n);
+        EVENT::MCParticle* particle = (EVENT::MCParticle*) mc_particles->getElementAt(particle_n);
     
-        //if (particle->getPDG() == 11) n_electrons++; 
+        if (particle->getPDG() == 11 && particle->getParents().size() == 0) {
+           recoil_e = particle; 
+        }
 
-    //    if (particle->getParents().size() == 0) {
-    //       beam_e = particle; 
-    //    }
-
-       /*if (particle->getPDG() == 22 && particle->getVertex()[2] < -3) { 
+        if (particle->getPDG() == 22 
+                && particle->getParents()[0]->getPDG() == 11
+                && particle->getParents()[0]->getParents().size() == 0) { 
+            
             double* brem_energy_vec = (double*) particle->getMomentum(); 
-            double brem_energy = sqrt(pow(brem_energy_vec[0], 2) + pow(brem_energy_vec[1], 2) + pow(brem_energy_vec[2], 2));
-            if (brem_energy > largest_brem_energy) {
-                largest_brem_energy = brem_energy;
-                brem_position = particle->getVertex()[2];
-            }
-       }*/ 
-    //}
+            double brem_energy 
+                = sqrt(pow(brem_energy_vec[0], 2) + pow(brem_energy_vec[1], 2) + pow(brem_energy_vec[2], 2));
 
-    // Calculate the momentum of the incident electron
-    /*double* beam_e_pvec = (double*) beam_e->getMomentum();
-    double beam_e_p = sqrt(pow(beam_e_pvec[0], 2) + pow(beam_e_pvec[1], 2) + pow(beam_e_pvec[2], 2));
-    tuple->setVariableValue("beam_e_p", beam_e_p); 
-    tuple->setVariableValue("beam_e_px", beam_e_pvec[0]); 
-    tuple->setVariableValue("beam_e_py", beam_e_pvec[1]); 
-    tuple->setVariableValue("beam_e_pz", beam_e_pvec[2]);
-    
+            if (brem_energy > hardest_brem_energy) {
+                hardest_brem_energy = brem_energy;
+                hardest_brem_position = particle->getVertex()[2];
+            }
+        }
+    }
+
+    tuple->setVariableValue("hardest_brem_energy", hardest_brem_energy);
+    tuple->setVariableValue("hardest_brem_pos_z", hardest_brem_position);
 
     // Get the collection of SimTrackerHits associated with the Recoil tracker
     // from the event.  If no such collection exist, a DataNotAvailableException
     // is thrown.
     EVENT::LCCollection* sim_hits 
         = (EVENT::LCCollection*) event->getCollection("RecoilTrackerHits");
+    tuple->setVariableValue("n_sim_hits", sim_hits->getNumberOfElements());
 
     // Create a cell ID decoder used to get specific properties associated with
     // Recoil SimTrackerHits i.e. layer.
     UTIL::CellIDDecoder<EVENT::SimTrackerHit> sim_hit_decoder(sim_hits);
-    */
 
-    /*for (int sim_hit_n = 0; sim_hit_n < sim_hits->getNumberOfElements(); ++sim_hit_n) { 
+    std::vector<int> sim_hits_vec(10, 0);
+    int n_recoil_sim_hits = 0;
+    for (int sim_hit_n = 0; sim_hit_n < sim_hits->getNumberOfElements(); ++sim_hit_n) { 
         
         // Get a Recoil SimTrackerHit from the collection of hits.
         EVENT::SimTrackerHit* sim_hit 
@@ -124,43 +167,96 @@ void RecoilTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
         // Get the layer number associated with this hit.
         int layer = sim_hit_decoder(sim_hit)["layer"];
 
+        if (recoil_e == sim_hit->getMCParticle()) { 
+            
+            ++n_recoil_sim_hits;
+
+            tuple->addToVector("recoil_sim_hit_layer", layer);
+            tuple->addToVector("recoil_sim_hit_dedx",  sim_hit->getEDep());
+            tuple->addToVector("recoil_sim_hit_time",  sim_hit->getTime());
+            tuple->addToVector("recoil_sim_hit_pos_x", sim_hit->getPosition()[0]); 
+            tuple->addToVector("recoil_sim_hit_pos_y", sim_hit->getPosition()[1]); 
+            tuple->addToVector("recoil_sim_hit_pos_z", sim_hit->getPosition()[2]); 
+        
+            tuple->addToVector("recoil_sim_hit_backscattered", 0);
+            if (sim_hit->getMCParticle()->isBackscatter()) 
+                tuple->addToVector("recoil_sim_hit_backscattered", 1);
+        }
+            
         tuple->addToVector("sim_hit_layer", layer);
+        tuple->addToVector("sim_hit_dedx",  sim_hit->getEDep());
+        tuple->addToVector("sim_hit_time",  sim_hit->getTime());
         tuple->addToVector("sim_hit_pos_x", sim_hit->getPosition()[0]); 
         tuple->addToVector("sim_hit_pos_y", sim_hit->getPosition()[1]); 
         tuple->addToVector("sim_hit_pos_z", sim_hit->getPosition()[2]); 
-        tuple->addToVector("sim_hit_time", sim_hit->getTime());
-    }*/
 
-    // Check if the track is findable
-    /*tuple->setVariableValue("is_findable", 0);
-    std::vector<EVENT::SimTrackerHit*> findable_sim_hits; 
-    if (TrackUtils::isTrackFindable(14, beam_e, sim_hits, findable_sim_hits)) {
-        ++findable_track;
-        tuple->setVariableValue("is_findable", 1);  
-    }*/
+        tuple->addToVector("sim_hit_backscattered", 0);
+        if (sim_hit->getMCParticle()->isBackscatter()) 
+            tuple->addToVector("sim_hit_backscattered", 1);
     
-    /*for (EVENT::SimTrackerHit* sim_hit : findable_sim_hits) { 
+    }
+
+    // Check if the recoil track is findable
+    tuple->setVariableValue("recoil_is_findable", 0);
+    int strategy[10] = {1, 1, 1, 1, 1, 1, 1, 1, 0, 0};
+
+    std::vector<EVENT::SimTrackerHit*> findable_sim_hits; 
+    EVENT::SimTrackerHit* last_recoil_hit = nullptr;
+    if (TrackUtils::isTrackFindable(10, strategy, recoil_e, sim_hits, findable_sim_hits)) {
+        tuple->setVariableValue("recoil_is_findable", 1);  
+        
+    }
+    
+    int last_layer = 0;
+    int first_layer = 15;
+    EVENT::SimTrackerHit* last_recoil_sim_hit = nullptr;
+    EVENT::SimTrackerHit* first_recoil_sim_hit = nullptr;
+    for (EVENT::SimTrackerHit* sim_hit : findable_sim_hits) {
         
         // Get the layer number associated with this hit.
         int layer = sim_hit_decoder(sim_hit)["layer"];
-
-        tuple->addToVector("sim_hit_layer", layer);
-        tuple->addToVector("sim_hit_pos_x", sim_hit->getPosition()[0]); 
-        tuple->addToVector("sim_hit_pos_y", sim_hit->getPosition()[1]); 
-        tuple->addToVector("sim_hit_pos_z", sim_hit->getPosition()[2]); 
-        tuple->addToVector("sim_hit_time", sim_hit->getTime());
-    
-        if ((beam_e == sim_hit->getMCParticle()) && (layer == 14)) { 
-    
-            // Calculate the momentum of the incident electron
-            float* sim_hit_pvec = (float*) sim_hit->getMomentum();
-            double sim_hit_p = sqrt(pow(sim_hit_pvec[0], 2) + pow(sim_hit_pvec[1], 2) + pow(sim_hit_pvec[2], 2));
-            tuple->setVariableValue("beam_e_p_last", sim_hit_p); 
-            tuple->setVariableValue("beam_e_px_last", sim_hit_pvec[0]); 
-            tuple->setVariableValue("beam_e_py_last", sim_hit_pvec[1]); 
-            tuple->setVariableValue("beam_e_pz_last", sim_hit_pvec[2]); 
+        
+        if (layer > last_layer) { 
+            last_layer = layer;
+            last_recoil_sim_hit = sim_hit;
         }
+
+        if (layer < first_layer) { 
+            first_layer = layer; 
+            first_recoil_sim_hit = sim_hit;
+        }
+    } 
+
+    if (first_recoil_sim_hit != nullptr) { 
+        float* recoil_truth_pvec = (float*) first_recoil_sim_hit->getMomentum();
+        double recoil_truth_p 
+            = sqrt(pow(recoil_truth_pvec[0], 2) + pow(recoil_truth_pvec[1], 2) + pow(recoil_truth_pvec[2], 2));
+        double recoil_truth_pt 
+            = sqrt(pow(recoil_truth_pvec[0], 2) + pow(recoil_truth_pvec[1], 2));
+        tuple->setVariableValue("recoil_truth_p_first", recoil_truth_p); 
+        tuple->setVariableValue("recoil_truth_pt_first", recoil_truth_pt); 
+        tuple->setVariableValue("recoil_truth_px_first", recoil_truth_pvec[0]); 
+        tuple->setVariableValue("recoil_truth_py_first", recoil_truth_pvec[1]); 
+        tuple->setVariableValue("recoil_truth_pz_first", recoil_truth_pvec[2]); 
     }
+
+    if (last_recoil_sim_hit != nullptr) { 
+        float* recoil_truth_pvec = (float*) last_recoil_sim_hit->getMomentum();
+        double recoil_truth_p 
+            = sqrt(pow(recoil_truth_pvec[0], 2) + pow(recoil_truth_pvec[1], 2) + pow(recoil_truth_pvec[2], 2));
+        double recoil_truth_pt 
+            = sqrt(pow(recoil_truth_pvec[0], 2) + pow(recoil_truth_pvec[1], 2));
+        tuple->setVariableValue("recoil_truth_p_last", recoil_truth_p); 
+        tuple->setVariableValue("recoil_truth_pt_last", recoil_truth_pt); 
+        tuple->setVariableValue("recoil_truth_px_last", recoil_truth_pvec[0]); 
+        tuple->setVariableValue("recoil_truth_py_last", recoil_truth_pvec[1]); 
+        tuple->setVariableValue("recoil_truth_pz_last", recoil_truth_pvec[2]); 
+    }
+
+    // Get the collection of raw hits from the event
+    EVENT::LCCollection* raw_hits 
+        = (EVENT::LCCollection*) event->getCollection("RecoilRawTrackerHits");
+    tuple->setVariableValue("n_raw_hits", raw_hits->getNumberOfElements());
 
     // Get the collection of LCRelations between a raw hit and a SimTrackerHit.
     EVENT::LCCollection* true_hit_relations
@@ -170,7 +266,7 @@ void RecoilTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
     // the SimTrackerHit or raw hits.
     UTIL::LCRelationNavigator* true_hit_relations_nav
         = new UTIL::LCRelationNavigator(true_hit_relations);
-    */
+
     // Get the collection of Recoil tracker tracks from the event.  If no such
     // collection exist, a DataNotAvailableException is thrown.
     EVENT::LCCollection* tracks 
@@ -180,59 +276,95 @@ void RecoilTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
     if (tracks->getNumberOfElements() == 0) { 
         tuple->fill();
         tuple->clear();
+        return;
     }
-   
+ 
+    tuple->setVariableValue("recoil_is_found", 0);
+
+    std::vector<TrackerHit*> recoil_track_hits; 
     for (int track_n = 0; track_n < tracks->getNumberOfElements(); ++track_n) {
 
+        bool is_recoil_track = false; 
         EVENT::Track* track = (EVENT::Track*) tracks->getElementAt(track_n); 
-    
+        
         std::vector<TrackerHit*> track_hits = track->getTrackerHits();
-        /*
-
+        
+        double p = TrackUtils::getMomentum(track, -0.75);
+        std::vector<double> p_vec = TrackUtils::getMomentumVector(track, -0.75);
+        double pt = sqrt(p_vec[1]*p_vec[1] + p_vec[2]*p_vec[2]); 
+         
         double n_mishit = 0;  
+        bool mishit_found = false;
+
+        double n_recoil_hits = 0;
+        bool recoil_hit_found = false;
+        
         for (TrackerHit* track_hit : track_hits) {
-            bool mishit_found = false;
             for (int raw_hit_n = 0; raw_hit_n < track_hit->getRawHits().size(); ++raw_hit_n) { 
                 
-                EVENT::TrackerRawData* tagger_track_raw_hit 
+                EVENT::TrackerRawData* raw_hit 
                     = (EVENT::TrackerRawData*) track_hit->getRawHits()[raw_hit_n];
                 
-                EVENT::LCObjectVec sim_hit_list 
-                    = true_hit_relations_nav->getRelatedToObjects(tagger_track_raw_hit);
-                
-                if (((EVENT::SimTrackerHit*) sim_hit_list[0])->getMCParticle() != beam_e) { 
-                    mishit_found = true;
+                std::vector<LCObject*> sim_hit_list 
+                    = true_hit_relations_nav->getRelatedToObjects(raw_hit);
+               
+                for (LCObject* hit : sim_hit_list) {
+                    if (recoil_e == ((EVENT::SimTrackerHit*) hit)->getMCParticle()) {
+                        recoil_hit_found = true;
+                        n_recoil_hits++; 
+                    } else { 
+                        if (recoil_hit_found) { 
+                            mishit_found = true;
+                            n_mishit++; 
+                        }
+                    } 
                 }
             }
             if (mishit_found) n_mishit++; 
-        } 
-        tuple->setVariableValue("n_mishits", n_mishit); */
+        }
 
-        double p = TrackUtils::getMomentum(track, -0.75);
-        std::vector<double> p_vec = TrackUtils::getMomentumVector(track, -1.5);
-        double pt = sqrt(p_vec[1]*p_vec[1] + p_vec[2]*p_vec[2]); 
+        if (recoil_hit_found && (n_mishit < n_recoil_hits)) is_recoil_track = true; 
 
-        tuple->setVariableValue("n_track_hits", track_hits.size());
 
-        tuple->setVariableValue("chi2", track->getChi2());
-        tuple->setVariableValue("p", p);
-        tuple->setVariableValue("pt", pt);
-        tuple->setVariableValue("px", p_vec[0]);
-        tuple->setVariableValue("py", p_vec[1]);
-        tuple->setVariableValue("pz", p_vec[2]);
-        tuple->setVariableValue("d0", track->getD0());
-        tuple->setVariableValue("z0", track->getZ0());
-        tuple->setVariableValue("omega", track->getOmega());
-        tuple->setVariableValue("phi0", track->getPhi());
-        tuple->setVariableValue("tan_lambda", track->getTanLambda());
+        if (is_recoil_track) { 
         
-        tuple->fill(); 
-    }
+            tuple->setVariableValue("n_recoil_hits", track_hits.size());
+            tuple->setVariableValue("recoil_is_found", 1); 
+            tuple->setVariableValue("n_recoil_mishits", n_mishit); 
 
+            tuple->setVariableValue("recoil_chi2", track->getChi2());
+            tuple->setVariableValue("recoil_p", p);
+            tuple->setVariableValue("recoil_pt", pt);
+            tuple->setVariableValue("recoil_px", p_vec[0]);
+            tuple->setVariableValue("recoil_py", p_vec[1]);
+            tuple->setVariableValue("recoil_pz", p_vec[2]);
+            tuple->setVariableValue("recoil_d0", track->getD0());
+            tuple->setVariableValue("recoil_z0", track->getZ0());
+            tuple->setVariableValue("recoil_omega", track->getOmega());
+            tuple->setVariableValue("recoil_phi0", track->getPhi());
+            tuple->setVariableValue("recoil_tan_lambda", track->getTanLambda());
+        }
+    } 
+
+    tuple->fill();
     tuple->clear();
 
 }
 
 void RecoilTrackerAnalysis::finalize() { 
     tuple->close();
+}
+
+bool RecoilTrackerAnalysis::createdWithinTarget(MCParticle* particle) {
+    //std::cout << "Checking if particle was created within the target." << std::endl;
+    if (particle->getVertex()[2] > -.1750 && particle->getVertex()[2] < .1750) {
+        //std::cout << "Particle created within the target." << std::endl;
+        return true;
+    }
+    //std::cout << "Particle created downstream of the target." << std::endl;
+    return false; 
+}
+
+void RecoilTrackerAnalysis::filterPhotoNuclearEvents(bool filter_pn) { 
+    this->filter_pn = filter_pn;
 }
