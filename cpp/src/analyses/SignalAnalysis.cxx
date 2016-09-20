@@ -51,10 +51,15 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
     
     // Recoil electron
     EVENT::MCParticle* recoil_electron = nullptr;
+
+    // A'
+    EVENT::MCParticle* aprime = nullptr;
     
     // Find the recoil electron
     for (int mc_particle_n = 0; mc_particle_n < mc_particles->getNumberOfElements(); ++mc_particle_n) { 
         
+        if (recoil_electron != nullptr &&  aprime != nullptr) break;
+
         EVENT::MCParticle* mc_particle = (EVENT::MCParticle*) mc_particles->getElementAt(mc_particle_n);
 
         if (mc_particle->getPDG() == SignalAnalysis::ELECTRON_PDG
@@ -63,9 +68,11 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
         }
 
         if (mc_particle->getPDG() == SignalAnalysis::A_PRIME_PDG) { 
-            tuple->setVariableValue("ap_mass", mc_particle->getMass()); 
+            aprime = mc_particle;
         }
     } 
+
+    tuple->setVariableValue("ap_mass", aprime->getMass()); 
 
     // Calculate the momentum of the recoil electron
     double* recoil_e_pvec = (double*) recoil_electron->getMomentum();
@@ -77,6 +84,7 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
     tuple->setVariableValue("recoil_py", recoil_e_pvec[1]);
     tuple->setVariableValue("recoil_pz", recoil_e_pvec[2]);
 
+    
     // Get the collection of SimTrackerHits associated with the Tagger tracker
     // from the event.  If no such collection exist, a DataNotAvailableException
     // is thrown.
@@ -107,7 +115,7 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
             tuple->addToVector("sim_hit_time", sim_hit->getTime());
         }
     }
-    
+     
     tuple->setVariableValue("is_within_acceptance", 0);
     bool is_within_acceptance = true; 
     for (int layer_n = 0; layer_n < 6; ++layer_n) { 
@@ -120,8 +128,9 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
              || recoil_e_hit_count[9] > 0)) {
         
         tuple->setVariableValue("is_within_acceptance", 1);
-    } 
-    tuple->fill();  
+    }
+    tuple->fill(); 
+    tuple->clear(); 
 }
 
 void SignalAnalysis::finalize() { 
