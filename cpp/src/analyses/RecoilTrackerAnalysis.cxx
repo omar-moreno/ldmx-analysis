@@ -24,6 +24,10 @@ void RecoilTrackerAnalysis::initialize() {
     tuple->addVariable("event");
     tuple->addVariable("n_tracks");
     tuple->addVariable("n_raw_hits");
+    tuple->addVariable("n_3d_hits");
+
+    tuple->addVariable("target_energy");
+    tuple->addVariable("trigger_pad_energy");
 
     // Recoil track parameters and kinematics
 
@@ -77,6 +81,16 @@ void RecoilTrackerAnalysis::initialize() {
     tuple->addVector("sim_hit_pos_y");
     tuple->addVector("sim_hit_pos_z");
 
+    tuple->addVariable("n_recoil_clusters");
+    tuple->addVector("recoil_cluster_size");
+    tuple->addVector("recoil_cluster_layer");
+    tuple->addVector("recoil_cluster_dedx");
+    tuple->addVector("recoil_cluster_time");
+    tuple->addVector("recoil_cluster_pos_x");
+    tuple->addVector("recoil_cluster_pos_y");
+    tuple->addVector("recoil_cluster_pos_z");
+    
+
 
     /*/reco
     tuple->addVariable("x_target");
@@ -89,7 +103,31 @@ void RecoilTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
    
     tuple->setVariableValue("event", event->getEventNumber());
     //std::cout << "Event: " << event->getEventNumber() << std::endl;
+   
+    // Get the collection of TargetHits from the event.  If no such collection
+    // exist, a DataNotAvailableException is thrown.
+    EVENT::LCCollection* target_hits
+        = (EVENT::LCCollection*) event->getCollection("TargetHits");
     
+    if (target_hits->getNumberOfElements() != 0) { 
+        EVENT::CalorimeterHit* target_hit 
+            = (EVENT::CalorimeterHit*) target_hits->getElementAt(0);
+    
+        // Get the energy deposited in the target
+        tuple->setVariableValue("target_energy", target_hit->getEnergy()*1000);
+    }
+
+    EVENT::LCCollection* trigger_pad_hits
+        = (EVENT::LCCollection*) event->getCollection("TriggerPadHits");
+
+    if (trigger_pad_hits->getNumberOfElements() != 0) { 
+        EVENT::CalorimeterHit* trigger_pad_hit 
+            = (EVENT::CalorimeterHit*) trigger_pad_hits->getElementAt(0);
+   
+        // Get the energy deposited in the trigger pad
+        tuple->setVariableValue("trigger_pad_energy", trigger_pad_hit->getEnergy()*1000); 
+    }
+
     /*if (filter_pn) {
     
         // Get the collection of MC particles from the event. If no such collection
@@ -267,11 +305,58 @@ void RecoilTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
     UTIL::LCRelationNavigator* true_hit_relations_nav
         = new UTIL::LCRelationNavigator(true_hit_relations);
 
+    // Get the collection of clusters from the event
+    EVENT::LCCollection* clusters 
+        = (EVENT::LCCollection*) event->getCollection("RecoilClusters");
+
+    // Create a cell ID decoder used to get specific properties associated with
+    // Tagger raw hits.
+    std::string encoder_string = "system:6,barrel:3,layer:4,module:12,sensor:1,side:32:-2,strip:1";
+    UTIL::CellIDDecoder<EVENT::TrackerRawData> raw_hit_decoder(encoder_string);
+
+    int n_clusters = 0;
+    for (int cluster_n = 0; cluster_n < clusters->getNumberOfElements(); ++cluster_n) { 
+        
+        EVENT::TrackerHit* cluster = (EVENT::TrackerHit*) clusters->getElementAt(cluster_n);
+
+        // Get a raw hit from the list of raw hits
+        EVENT::TrackerRawData* raw_hit 
+            = (EVENT::TrackerRawData*) cluster->getRawHits()[0]; 
+
+        // Get the layer number associated with this hit.
+        int layer = raw_hit_decoder(raw_hit)["layer"];
+
+        std::vector<LCObject*> sim_hit_list 
+            = true_hit_relations_nav->getRelatedToObjects(raw_hit);
+        
+        bool recoil_cluster_found = false; 
+        for (LCObject* hit : sim_hit_list) {
+            if (recoil_e == ((EVENT::SimTrackerHit*) hit)->getMCParticle()) {
+                recoil_cluster_found = true;
+                n_clusters++; 
+            }
+        }
+
+        if (recoil_cluster_found) {
+            tuple->addToVector("recoil_cluster_size", cluster->getRawHits().size()); 
+            tuple->addToVector("recoil_cluster_layer", layer);
+            tuple->addToVector("recoil_cluster_dedx",  cluster->getEDep());
+            tuple->addToVector("recoil_cluster_time",  cluster->getTime());
+            tuple->addToVector("recoil_cluster_pos_x", cluster->getPosition()[0]); 
+            tuple->addToVector("recoil_cluster_pos_y", cluster->getPosition()[1]); 
+            tuple->addToVector("recoil_cluster_pos_z", cluster->getPosition()[2]); 
+        }
+    } 
+
+    EVENT::LCCollection* stereo_hits
+        = (EVENT::LCCollection*) event->getCollection("RecoilHelicalTrackHits"); 
+    tuple->setVariableValue("n_3d_hits", stereo_hits->getNumberOfElements()); 
+
     // Get the collection of Recoil tracker tracks from the event.  If no such
     // collection exist, a DataNotAvailableException is thrown.
     EVENT::LCCollection* tracks 
         = (EVENT::LCCollection*) event->getCollection("RecoilTracks");
-   
+ 
     tuple->setVariableValue("n_tracks", tracks->getNumberOfElements());
     if (tracks->getNumberOfElements() == 0) { 
         tuple->fill();
@@ -282,6 +367,8 @@ void RecoilTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
     tuple->setVariableValue("recoil_is_found", 0);
 
     std::vector<TrackerHit*> recoil_track_hits; 
+    EVENT::Track* recoil_e_track = nullptr;
+    double n_recoil_hits = 0;
     for (int track_n = 0; track_n < tracks->getNumberOfElements(); ++track_n) {
 
         bool is_recoil_track = false; 
@@ -292,14 +379,14 @@ void RecoilTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
         double p = TrackUtils::getMomentum(track, -0.75);
         std::vector<double> p_vec = TrackUtils::getMomentumVector(track, -0.75);
         double pt = sqrt(p_vec[1]*p_vec[1] + p_vec[2]*p_vec[2]); 
-         
-        double n_mishit = 0;  
-        bool mishit_found = false;
-
-        double n_recoil_hits = 0;
-        bool recoil_hit_found = false;
         
+        //std::cout << "[ RecoilTrackerAnalysis ]: Track momentum " << p << " GeV" << std::endl;
+        //std::cout << "[ RecoilTrackerAnalysis ]: Track hits " << track_hits.size() << std::endl;
+
+        double current_n_recoil_hits = 0; 
         for (TrackerHit* track_hit : track_hits) {
+            //std::cout << "[ RecoilTrackerAnalysis ]: Total number of raw hits " << track_hit->getRawHits().size() << std::endl;
+            bool recoil_hit_found = true;
             for (int raw_hit_n = 0; raw_hit_n < track_hit->getRawHits().size(); ++raw_hit_n) { 
                 
                 EVENT::TrackerRawData* raw_hit 
@@ -309,42 +396,65 @@ void RecoilTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
                     = true_hit_relations_nav->getRelatedToObjects(raw_hit);
                
                 for (LCObject* hit : sim_hit_list) {
-                    if (recoil_e == ((EVENT::SimTrackerHit*) hit)->getMCParticle()) {
-                        recoil_hit_found = true;
-                        n_recoil_hits++; 
-                    } else { 
-                        if (recoil_hit_found) { 
-                            mishit_found = true;
-                            n_mishit++; 
-                        }
+                    //std::cout << "[ RecoilTrackerAnalysis ]: Sim particle " << ((EVENT::SimTrackerHit*) hit)->getMCParticle()->getPDG() << std::endl;
+                    if (recoil_e != ((EVENT::SimTrackerHit*) hit)->getMCParticle()) {
+                        //std::cout << "[ RecoilTrackerAnalysis ]: This is not a recoil electron hit." << std::endl;
+                        recoil_hit_found = false;
+                        break;
+                    } 
+                }
+            }
+            if (recoil_hit_found) current_n_recoil_hits++; 
+        }
+
+        if (current_n_recoil_hits > n_recoil_hits) { 
+            n_recoil_hits = current_n_recoil_hits;
+            recoil_e_track = track; 
+        }
+
+    } 
+
+    if (recoil_e_track != nullptr) { 
+        
+        double p = TrackUtils::getMomentum(recoil_e_track, -0.75);
+        std::vector<double> p_vec = TrackUtils::getMomentumVector(recoil_e_track, -0.75);
+        double pt = sqrt(p_vec[1]*p_vec[1] + p_vec[2]*p_vec[2]); 
+        
+        tuple->setVariableValue("n_recoil_hits", n_recoil_hits);
+        tuple->setVariableValue("recoil_is_found", 1); 
+        tuple->setVariableValue("recoil_chi2", recoil_e_track->getChi2());
+        tuple->setVariableValue("recoil_p", p);
+        tuple->setVariableValue("recoil_pt", pt);
+        tuple->setVariableValue("recoil_px", p_vec[0]);
+        tuple->setVariableValue("recoil_py", p_vec[1]);
+        tuple->setVariableValue("recoil_pz", p_vec[2]);
+        tuple->setVariableValue("recoil_d0", recoil_e_track->getD0());
+        tuple->setVariableValue("recoil_z0", recoil_e_track->getZ0());
+        tuple->setVariableValue("recoil_omega", recoil_e_track->getOmega());
+        tuple->setVariableValue("recoil_phi0", recoil_e_track->getPhi());
+        tuple->setVariableValue("recoil_tan_lambda", recoil_e_track->getTanLambda());
+   
+        double n_mishit = 0;  
+        bool mishit_found = false;
+        for (TrackerHit* track_hit : recoil_e_track->getTrackerHits()) {
+            for (int raw_hit_n = 0; raw_hit_n < track_hit->getRawHits().size(); ++raw_hit_n) { 
+                EVENT::TrackerRawData* raw_hit 
+                    = (EVENT::TrackerRawData*) track_hit->getRawHits()[raw_hit_n];
+                
+                std::vector<LCObject*> sim_hit_list 
+                    = true_hit_relations_nav->getRelatedToObjects(raw_hit);
+               
+                for (LCObject* hit : sim_hit_list) {
+                    if (recoil_e != ((EVENT::SimTrackerHit*) hit)->getMCParticle()) {
+                        mishit_found = true;
+                        break;
                     } 
                 }
             }
             if (mishit_found) n_mishit++; 
         }
-
-        if (recoil_hit_found && (n_mishit < n_recoil_hits)) is_recoil_track = true; 
-
-
-        if (is_recoil_track) { 
-        
-            tuple->setVariableValue("n_recoil_hits", track_hits.size());
-            tuple->setVariableValue("recoil_is_found", 1); 
-            tuple->setVariableValue("n_recoil_mishits", n_mishit); 
-
-            tuple->setVariableValue("recoil_chi2", track->getChi2());
-            tuple->setVariableValue("recoil_p", p);
-            tuple->setVariableValue("recoil_pt", pt);
-            tuple->setVariableValue("recoil_px", p_vec[0]);
-            tuple->setVariableValue("recoil_py", p_vec[1]);
-            tuple->setVariableValue("recoil_pz", p_vec[2]);
-            tuple->setVariableValue("recoil_d0", track->getD0());
-            tuple->setVariableValue("recoil_z0", track->getZ0());
-            tuple->setVariableValue("recoil_omega", track->getOmega());
-            tuple->setVariableValue("recoil_phi0", track->getPhi());
-            tuple->setVariableValue("recoil_tan_lambda", track->getTanLambda());
-        }
-    } 
+        tuple->setVariableValue("n_recoil_mishits", n_mishit); 
+    }
 
     tuple->fill();
     tuple->clear();

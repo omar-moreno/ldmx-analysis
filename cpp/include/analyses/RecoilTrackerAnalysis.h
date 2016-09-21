@@ -19,6 +19,7 @@
 //----------//
 //   LCIO   //
 //----------//
+#include <EVENT/CalorimeterHit.h>
 #include <EVENT/LCEvent.h>
 #include <EVENT/LCCollection.h>
 #include <EVENT/SimTrackerHit.h>
