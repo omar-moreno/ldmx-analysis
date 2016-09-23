@@ -159,8 +159,14 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
 
     // Get the collection of Recoil tracker tracks from the event.  If no such
     // collection exist, a DataNotAvailableException is thrown.
-    EVENT::LCCollection* tracks 
-        = (EVENT::LCCollection*) event->getCollection("RecoilTracks");
+    EVENT::LCCollection* tracks = nullptr;
+    try { 
+        tracks = (EVENT::LCCollection*) event->getCollection("RecoilTracks");
+    } catch (EVENT::DataNotAvailableException e) { 
+        tuple->fill(); 
+        tuple->clear(); 
+        return;
+    }
 
     tuple->setVariableValue("recoil_is_found", 0);
     for (int track_n = 0; track_n < tracks->getNumberOfElements(); ++track_n) {
