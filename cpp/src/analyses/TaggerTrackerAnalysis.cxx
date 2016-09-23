@@ -46,6 +46,9 @@ void TaggerTrackerAnalysis::initialize() {
     tuple->addVariable("y_target");
     tuple->addVariable("z0");
 
+    tuple->addVariable("hardest_brem_energy");
+    tuple->addVariable("hardest_brem_pos_z");
+
     tuple->addVector("tagger_sim_hit_layer");
     tuple->addVector("tagger_sim_hit_dedx");
     tuple->addVector("tagger_sim_hit_backscattered");
@@ -78,6 +81,8 @@ void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
     //int n_electrons = 0;
     //double largest_brem_energy = 0; 
     //double brem_position = -1; 
+    double hardest_brem_energy = -10000; 
+    double hardest_brem_position = -10000; 
     for (int mc_particle_n = 0; mc_particle_n < mc_particles->getNumberOfElements(); ++mc_particle_n) {
 
         EVENT::MCParticle* particle = (EVENT::MCParticle*) mc_particles->getElementAt(mc_particle_n);
@@ -93,15 +98,25 @@ void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
             return;
         }
 
-       /*if (particle->getPDG() == 22 && particle->getVertex()[2] < -3) { 
-            double* brem_energy_vec = (double*) particle->getMomentum(); 
-            double brem_energy = sqrt(pow(brem_energy_vec[0], 2) + pow(brem_energy_vec[1], 2) + pow(brem_energy_vec[2], 2));
-            if (brem_energy > largest_brem_energy) {
-                largest_brem_energy = brem_energy;
-                brem_position = particle->getVertex()[2];
-            }
-       }*/ 
+       if (particle->getPDG() == 22
+               && particle->getParents()[0]->getPDG() == 1
+               && particle->getParents()[0]->getParents().size() == 0) {
+
+           if (particle->getVertex()[2] < -0.175) { 
+                double* brem_energy_vec = (double*) particle->getMomentum(); 
+                double brem_energy = sqrt(pow(brem_energy_vec[0], 2)
+                        + pow(brem_energy_vec[1], 2) + pow(brem_energy_vec[2], 2));
+          
+                if (brem_energy > hardest_brem_energy) {
+                    hardest_brem_energy = brem_energy;
+                    hardest_brem_position = particle->getVertex()[2];
+                }
+           }
+       } 
     }
+
+    tuple->setVariableValue("hardest_brem_energy", hardest_brem_energy);
+    tuple->setVariableValue("hardest_brem_pos_z", hardest_brem_position);
 
     // Calculate the momentum of the incident electron
     double* beam_e_pvec = (double*) beam_e->getMomentum();
@@ -235,6 +250,11 @@ void TaggerTrackerAnalysis::processEvent(EVENT::LCEvent* event) {
         tuple->setVariableValue("omega", track->getOmega());
         tuple->setVariableValue("phi0", track->getPhi());
         tuple->setVariableValue("tan_lambda", track->getTanLambda());
+
+        /*std::vector<double> position_target = TrackExtrapolator::extrapolateTrack(track, 0);
+        std::cout << "[ TrackExtrapolator ]: Position at target: [ " 
+                  << position_target[0] << ", " << position_target[1] << ", " 
+                  << position_target[2] << " ] " << std::endl;*/
     }
 
     tuple->fill();
