@@ -70,7 +70,7 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
     double hardest_brem_position = -10000; 
     for (int mc_particle_n = 0; mc_particle_n < mc_particles->getNumberOfElements(); ++mc_particle_n) { 
         
-        if (recoil_electron != nullptr &&  aprime != nullptr) break;
+        //if (recoil_electron != nullptr &&  aprime != nullptr) break;
 
         EVENT::MCParticle* mc_particle = (EVENT::MCParticle*) mc_particles->getElementAt(mc_particle_n);
 
@@ -83,10 +83,10 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
             aprime = mc_particle;
         }
         
-        if (mc_particle->getPDG() == 22 
+        if (mc_particle->getPDG() == 22
                 && mc_particle->getParents()[0]->getPDG() == SignalAnalysis::ELECTRON_PDG
                 && mc_particle->getParents()[0]->getGeneratorStatus() == SignalAnalysis::FINAL_STATE) {  
-            
+           
             double* brem_energy_vec = (double*) mc_particle->getMomentum(); 
             double brem_energy 
                 = sqrt(pow(brem_energy_vec[0], 2) + pow(brem_energy_vec[1], 2) + pow(brem_energy_vec[2], 2));
