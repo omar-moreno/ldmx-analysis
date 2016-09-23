@@ -22,8 +22,6 @@ void SignalAnalysis::initialize() {
 
     tuple->addVariable("event");
 
-    tuple->addVariable("is_within_acceptance");
-
     tuple->addVariable("recoil_is_findable");
     tuple->addVariable("recoil_is_found");
 
@@ -38,6 +36,9 @@ void SignalAnalysis::initialize() {
     tuple->addVariable("recoil_truth_px");
     tuple->addVariable("recoil_truth_py");
     tuple->addVariable("recoil_truth_pz");
+
+    tuple->addVariable("hardest_brem_energy");
+    tuple->addVariable("hardest_brem_pos_z");
 
     tuple->addVector("sim_hit_layer");
     tuple->addVector("sim_hit_pos_x");
@@ -65,6 +66,8 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
     EVENT::MCParticle* aprime = nullptr;
     
     // Find the recoil electron
+    double hardest_brem_energy = -10000; 
+    double hardest_brem_position = -10000; 
     for (int mc_particle_n = 0; mc_particle_n < mc_particles->getNumberOfElements(); ++mc_particle_n) { 
         
         if (recoil_electron != nullptr &&  aprime != nullptr) break;
@@ -79,7 +82,24 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
         if (mc_particle->getPDG() == SignalAnalysis::A_PRIME_PDG) { 
             aprime = mc_particle;
         }
+        
+        if (mc_particle->getPDG() == 22 
+                && mc_particle->getParents()[0]->getPDG() == SignalAnalysis::ELECTRON_PDG
+                && mc_particle->getParents()[0]->getGeneratorStatus() == SignalAnalysis::FINAL_STATE) {  
+            
+            double* brem_energy_vec = (double*) mc_particle->getMomentum(); 
+            double brem_energy 
+                = sqrt(pow(brem_energy_vec[0], 2) + pow(brem_energy_vec[1], 2) + pow(brem_energy_vec[2], 2));
+
+            if (brem_energy > hardest_brem_energy) {
+                hardest_brem_energy = brem_energy;
+                hardest_brem_position = mc_particle->getVertex()[2];
+            }
+        }
     } 
+
+    tuple->setVariableValue("hardest_brem_energy", hardest_brem_energy);
+    tuple->setVariableValue("hardest_brem_pos_z", hardest_brem_position);
 
     tuple->setVariableValue("ap_mass", aprime->getMass()); 
 
