@@ -24,12 +24,21 @@ void SignalAnalysis::initialize() {
 
     tuple->addVariable("is_within_acceptance");
 
+    tuple->addVariable("recoil_is_findable");
+    tuple->addVariable("recoil_is_found");
+
     tuple->addVariable("recoil_p");
     tuple->addVariable("recoil_pt");
     tuple->addVariable("recoil_px");
     tuple->addVariable("recoil_py");
     tuple->addVariable("recoil_pz");
-    
+
+    tuple->addVariable("recoil_truth_p");
+    tuple->addVariable("recoil_truth_pt");
+    tuple->addVariable("recoil_truth_px");
+    tuple->addVariable("recoil_truth_py");
+    tuple->addVariable("recoil_truth_pz");
+
     tuple->addVector("sim_hit_layer");
     tuple->addVector("sim_hit_pos_x");
     tuple->addVector("sim_hit_pos_y");
@@ -78,11 +87,11 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
     double* recoil_e_pvec = (double*) recoil_electron->getMomentum();
     double recoil_e_p = sqrt(pow(recoil_e_pvec[0], 2) + pow(recoil_e_pvec[1], 2) + pow(recoil_e_pvec[2], 2));
     double recoil_e_pt = sqrt(pow(recoil_e_pvec[0], 2) + pow(recoil_e_pvec[1], 2));
-    tuple->setVariableValue("recoil_p", recoil_e_p);
-    tuple->setVariableValue("recoil_pt", recoil_e_pt);
-    tuple->setVariableValue("recoil_px", recoil_e_pvec[0]);
-    tuple->setVariableValue("recoil_py", recoil_e_pvec[1]);
-    tuple->setVariableValue("recoil_pz", recoil_e_pvec[2]);
+    tuple->setVariableValue("recoil_truth_p", recoil_e_p);
+    tuple->setVariableValue("recoil_truth_pt", recoil_e_pt);
+    tuple->setVariableValue("recoil_truth_px", recoil_e_pvec[0]);
+    tuple->setVariableValue("recoil_truth_py", recoil_e_pvec[1]);
+    tuple->setVariableValue("recoil_truth_pz", recoil_e_pvec[2]);
 
     
     // Get the collection of SimTrackerHits associated with the Tagger tracker
@@ -116,19 +125,40 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
         }
     }
      
-    tuple->setVariableValue("is_within_acceptance", 0);
-    bool is_within_acceptance = true; 
-    for (int layer_n = 0; layer_n < 6; ++layer_n) { 
-        if (recoil_e_hit_count[layer_n] == 0) is_within_acceptance = false;
+    tuple->setVariableValue("recoil_is_findable", 0);
+    double n_3d_hits = 0;
+    for (int layer_n = 0; layer_n < 8; layer_n += 2) { 
+        if (recoil_e_hit_count[layer_n]*recoil_e_hit_count[layer_n + 1] != 0) n_3d_hits++;
+    }
+    
+    if (n_3d_hits > 3) tuple->setVariableValue("recoil_is_findable", 1);
+    else if (n_3d_hits == 3 &&
+            (recoil_e_hit_count[8] > 0 || recoil_e_hit_count[9] > 0)) { 
+        tuple->setVariableValue("recoil_is_findable", 1);
+    } 
+
+    // Get the collection of Recoil tracker tracks from the event.  If no such
+    // collection exist, a DataNotAvailableException is thrown.
+    EVENT::LCCollection* tracks 
+        = (EVENT::LCCollection*) event->getCollection("RecoilTracks");
+
+    tuple->setVariableValue("recoil_is_found", 0);
+    for (int track_n = 0; track_n < tracks->getNumberOfElements(); ++track_n) {
+        EVENT::Track* track = (EVENT::Track*) tracks->getElementAt(track_n); 
+        
+        double p = TrackUtils::getMomentum(track, -0.75);
+        std::vector<double> p_vec = TrackUtils::getMomentumVector(track, -0.75);
+        double pt = sqrt(p_vec[1]*p_vec[1] + p_vec[2]*p_vec[2]); 
+    
+        tuple->setVariableValue("recoil_p", p);
+        tuple->setVariableValue("recoil_pt", pt);
+        tuple->setVariableValue("recoil_px", p_vec[0]);
+        tuple->setVariableValue("recoil_py", p_vec[1]);
+        tuple->setVariableValue("recoil_pz", p_vec[2]);
+        
+        tuple->setVariableValue("recoil_is_found", 1);
     }
 
-    if (is_within_acceptance && 
-            (recoil_e_hit_count[6]*recoil_e_hit_count[7] > 0 
-             || recoil_e_hit_count[8] > 0 
-             || recoil_e_hit_count[9] > 0)) {
-        
-        tuple->setVariableValue("is_within_acceptance", 1);
-    }
     tuple->fill(); 
     tuple->clear(); 
 }

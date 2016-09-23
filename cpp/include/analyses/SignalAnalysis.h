@@ -12,17 +12,19 @@
 //--------------//
 //   Analyses   //
 //--------------//
-#include <LcioAbstractAnalysis.h>
 #include <FlatTupleMaker.h>
+#include <LcioAbstractAnalysis.h>
+#include <TrackUtils.h>
 
 //----------//
 //   LCIO   //
 //----------//
+#include <UTIL/CellIDDecoder.h>
 #include <EVENT/LCEvent.h>
 #include <EVENT/LCCollection.h>
-#include <EVENT/SimTrackerHit.h>
 #include <EVENT/MCParticle.h>
-#include <UTIL/CellIDDecoder.h>
+#include <EVENT/SimTrackerHit.h>
+#include <EVENT/Track.h>
 
 class SignalAnalysis : public LcioAbstractAnalysis { 
 
