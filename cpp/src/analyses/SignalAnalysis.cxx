@@ -37,6 +37,16 @@ void SignalAnalysis::initialize() {
     tuple->addVariable("recoil_truth_py");
     tuple->addVariable("recoil_truth_pz");
 
+    tuple->addVariable("recoil_vertex_x");
+    tuple->addVariable("recoil_vertex_y");
+    tuple->addVariable("recoil_vertex_z");
+    tuple->addVariable("recoil_ecal_sp_x");
+    tuple->addVariable("recoil_ecal_sp_y");
+    tuple->addVariable("recoil_ecal_sp_z");
+
+    tuple->addVariable("x_target");
+    tuple->addVariable("y_target");
+
     tuple->addVariable("hardest_brem_energy");
     tuple->addVariable("hardest_brem_pos_z");
 
@@ -96,7 +106,12 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
                 hardest_brem_position = mc_particle->getVertex()[2];
             }
         }
-    } 
+    }
+
+    
+    tuple->setVariableValue("recoil_vertex_x", recoil_electron->getVertex()[0]);
+    tuple->setVariableValue("recoil_vertex_y", recoil_electron->getVertex()[1]);
+    tuple->setVariableValue("recoil_vertex_z", recoil_electron->getVertex()[2]);
 
     tuple->setVariableValue("hardest_brem_energy", hardest_brem_energy);
     tuple->setVariableValue("hardest_brem_pos_z", hardest_brem_position);
@@ -157,6 +172,28 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
         tuple->setVariableValue("recoil_is_findable", 1);
     } 
 
+    // Get the collection of SimTrackerHits associated with the recoil tracker
+    // from the event.  If no such collection exist, a DataNotAvailableException
+    // is thrown.
+    EVENT::LCCollection* ecal_scoring_hits 
+        = (EVENT::LCCollection*) event->getCollection("EcalScoringHits");
+
+    for (int sp_hit_n = 0; sp_hit_n < ecal_scoring_hits->getNumberOfElements(); ++sp_hit_n) { 
+         
+        // Get a Tagger SimTrackerHit from the collection of hits.
+        EVENT::SimTrackerHit* ecal_scoring_hit 
+            = (EVENT::SimTrackerHit*) ecal_scoring_hits->getElementAt(sp_hit_n); 
+    
+        EVENT::MCParticle* sp_mc_particle = ecal_scoring_hit->getMCParticle();
+
+        if (sp_mc_particle == nullptr) continue;
+        else if (sp_mc_particle == recoil_electron) { 
+            tuple->setVariableValue("recoil_ecal_sp_x", ecal_scoring_hit->getPosition()[0]);
+            tuple->setVariableValue("recoil_ecal_sp_y", ecal_scoring_hit->getPosition()[1]);
+            tuple->setVariableValue("recoil_ecal_sp_z", ecal_scoring_hit->getPosition()[2]);
+        }
+    }
+
     // Get the collection of Recoil tracker tracks from the event.  If no such
     // collection exist, a DataNotAvailableException is thrown.
     EVENT::LCCollection* tracks = nullptr;
@@ -183,6 +220,11 @@ void SignalAnalysis::processEvent(EVENT::LCEvent* event) {
         tuple->setVariableValue("recoil_pz", p_vec[2]);
         
         tuple->setVariableValue("recoil_is_found", 1);
+    
+        std::vector<double> position_target = TrackExtrapolator::extrapolateTrack(track, 0);
+        tuple->setVariableValue("x_target", position_target[1]);
+        tuple->setVariableValue("y_target", position_target[2]);
+        
     }
 
     tuple->fill(); 

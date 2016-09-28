@@ -15,6 +15,7 @@
 #include <FlatTupleMaker.h>
 #include <LcioAbstractAnalysis.h>
 #include <TrackUtils.h>
+#include <TrackExtrapolator.h>
 
 //----------//
 //   LCIO   //
@@ -70,6 +71,7 @@ class SignalAnalysis : public LcioAbstractAnalysis {
         /** Final state status value */
         static int FINAL_STATE; 
 
+        int event_number; 
 }; // SignalAnalysis
 
 #endif // __SIGNAL_ANALYSIS_H__
