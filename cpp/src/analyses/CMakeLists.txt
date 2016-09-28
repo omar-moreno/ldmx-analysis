@@ -24,6 +24,7 @@ target_link_libraries(TaggerTrackerAnalysis
     FlatTupleMaker    
     LcioAbstractAnalysis
     TrackUtils
+    TrackExtrapolator
 )
 
 add_library(RecoilTrackerAnalysis RecoilTrackerAnalysis.cxx)
@@ -31,6 +32,7 @@ target_link_libraries(RecoilTrackerAnalysis
     FlatTupleMaker    
     LcioAbstractAnalysis
     TrackUtils
+    TrackExtrapolator
 )
 
 add_library(SignalAnalysis SignalAnalysis.cxx)
